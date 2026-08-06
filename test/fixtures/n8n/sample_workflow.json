@@ -1,0 +1,85 @@
+{
+  "name": "Sample n8n Flow",
+  "nodes": [
+    {
+      "id": "node-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [0, 0]
+    },
+    {
+      "id": "node-http",
+      "name": "Fetch Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "parameters": {
+        "url": "https://api.example.com/data",
+        "method": "GET"
+      },
+      "position": [220, 0]
+    },
+    {
+      "id": "node-if",
+      "name": "Check Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {"leftValue": "={{ $json.status }}", "rightValue": "ok", "operator": {"type": "string", "operation": "equals"}}
+          ]
+        }
+      },
+      "position": [440, 0]
+    },
+    {
+      "id": "node-code",
+      "name": "Transform",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const items = $input.all();\nreturn items.map(i => ({ json: { doubled: i.json.value * 2 } }));"
+      },
+      "position": [660, -80]
+    },
+    {
+      "id": "node-slack",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "parameters": {"channel": "#alerts", "text": "status not ok"},
+      "position": [660, 80]
+    },
+    {
+      "id": "node-respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "parameters": {},
+      "position": [880, 0]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{"node": "Fetch Data", "type": "main", "index": 0}]]
+    },
+    "Fetch Data": {
+      "main": [[{"node": "Check Status", "type": "main", "index": 0}]]
+    },
+    "Check Status": {
+      "main": [
+        [{"node": "Transform", "type": "main", "index": 0}],
+        [{"node": "Notify Slack", "type": "main", "index": 0}]
+      ]
+    },
+    "Transform": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    },
+    "Notify Slack": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  }
+}

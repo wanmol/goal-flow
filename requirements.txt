@@ -1,0 +1,78 @@
+# python 3.12
+# Core dependencies for Aira Workflow
+langgraph>=1.2.9
+langchain-openai>=1.1.10
+langchain-community>=0.4.1
+python-dateutil>=2.9.0
+
+# Web service dependencies
+fastapi>=0.116.1
+uvicorn>=0.35.0
+
+# Template and text processing
+jinja2>=3.1.6
+
+# Optional dependencies for enhanced functionality
+requests>=2.32.4
+python-dotenv>=1.1.1
+pymysql>=1.0.0
+sqlalchemy==2.0.29
+redis>=5.0.0
+nacos-sdk-python<1.0.0  # NACOS service registry (use 0.x for 'from nacos import NacosClient') 
+
+# unit test
+jsonpath-ng==1.7.0
+cryptography==45.0.7
+sse-starlette==3.0.2
+
+# document processing
+chardet==3.0.4
+docx==0.2.4
+PyYAML>=6.0
+pypdfium2==4.30.0
+unstructured==0.18.14
+python-docx==1.2.0
+
+# Data analysis and scientific computing
+pandas==2.3.2
+numpy  #>=1.24.0,<2.0.0  # Numerical computing (compatible with pandas 2.3.2)
+scipy>=1.11.0  # Scientific computing and statistics
+tabulate>=0.9.0  # Table formatting for better output presentation
+# matplotlib and seaborn are disabled due to GUI threading issues
+
+# Excel and data file processing
+openpyxl==3.1.5
+xlrd==1.2.0
+webvtt-py==0.5.1
+pypandoc==1.15
+dashscope==1.24.4
+
+tiktoken>=0.11.0
+structlog==25.4.0
+
+# Research tools dependencies
+beautifulsoup4>=4.8.0,<5.0.0  # Web crawling and HTML parsing (compatible with textract)
+lxml>=5.0.0  # HTML/XML processing
+qianfan>=0.3.0  # Baidu Qianfan SDK for AI services
+scikit-learn>=1.0.0  # Machine learning library for Python executor
+langchain-tavily>=0.2.13
+mcp  # Model Context Protocol for MCP-based web search
+
+langgraph-checkpoint-mysql[pymysql]
+
+# Vendored agent_kit (src/agent_kit) dependencies
+deepagents>=0.0.10
+pydantic>=2.0
+langchain-core>=0.3
+
+zhconv==1.4.3 
+pympler>=0.9
+psutil>=5.9.0
+
+langfuse
+
+# Image processing
+Pillow>=10.0.0
+
+# Alibaba Cloud OSS
+oss2>=2.18.0

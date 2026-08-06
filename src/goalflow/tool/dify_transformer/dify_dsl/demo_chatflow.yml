@@ -1,0 +1,632 @@
+app:
+  description: ''
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: test_chatflow0820
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/tongyi:0.2.3@966063fe991c50e5ac82106e65fc1949f852b2989ab2433ac028f0d25c6f92b1
+kind: app
+version: 0.4.0
+workflow:
+  conversation_variables:
+  - description: ''
+    id: e173fdb6-26c5-4225-9147-14634fcaa73e
+    name: test_int
+    selector:
+    - conversation
+    - test_int
+    value: 1
+    value_type: integer
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: question-classifier
+      id: 1755689716614-source-1756044135146-target
+      selected: false
+      source: '1755689716614'
+      sourceHandle: source
+      target: '1756044135146'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: llm
+      id: 1756044135146-1-1756045460846-target
+      selected: false
+      source: '1756044135146'
+      sourceHandle: '1'
+      target: '1756045460846'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: 1756045460846-source-1756045587974-target
+      selected: false
+      source: '1756045460846'
+      sourceHandle: source
+      target: '1756045587974'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: iteration
+      id: 1756045587974-source-1756023315127-target
+      selected: false
+      source: '1756045587974'
+      sourceHandle: source
+      target: '1756023315127'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1756023315127'
+        sourceType: iteration-start
+        targetType: http-request
+      id: 1756023315127start-source-1756045841366-target
+      selected: false
+      source: 1756023315127start
+      sourceHandle: source
+      target: '1756045841366'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1756023315127'
+        sourceType: http-request
+        targetType: code
+      id: 1756045841366-source-1756046176566-target
+      selected: false
+      source: '1756045841366'
+      sourceHandle: source
+      target: '1756046176566'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 1756046349071-source-1756046662447-target
+      selected: false
+      source: '1756046349071'
+      sourceHandle: source
+      target: '1756046662447'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: question-classifier
+        targetType: llm
+      id: 1756044135146-2-1756046728919-target
+      source: '1756044135146'
+      sourceHandle: '2'
+      target: '1756046728919'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: answer
+      id: 1756046728919-source-1756046787448-target
+      source: '1756046728919'
+      sourceHandle: source
+      target: '1756046787448'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: iteration
+        targetType: code
+      id: 1756023315127-source-1756189035885-target
+      source: '1756023315127'
+      sourceHandle: source
+      target: '1756189035885'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: 1756189035885-source-1756046349071-target
+      source: '1756189035885'
+      sourceHandle: source
+      target: '1756046349071'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 开始
+        type: start
+        variables: []
+      height: 54
+      id: '1755689716614'
+      position:
+        x: -729.3763914173632
+        y: 357.447357721573
+      positionAbsolute:
+        x: -729.3763914173632
+        y: 357.447357721573
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        error_handle_mode: terminated
+        height: 377
+        is_parallel: false
+        iterator_selector:
+        - '1756045587974'
+        - array
+        output_selector:
+        - '1756046176566'
+        - result
+        output_type: array[string]
+        parallel_nums: 10
+        selected: false
+        start_node_id: 1756023315127start
+        title: 迭代
+        type: iteration
+        width: 742
+      height: 377
+      id: '1756023315127'
+      position:
+        x: 537.0259369853857
+        y: 185.27705608122488
+      positionAbsolute:
+        x: 537.0259369853857
+        y: 185.27705608122488
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 742
+      zIndex: 1
+    - data:
+        desc: ''
+        isInIteration: true
+        selected: false
+        title: ''
+        type: iteration-start
+      draggable: false
+      height: 48
+      id: 1756023315127start
+      parentId: '1756023315127'
+      position:
+        x: 24
+        y: 68
+      positionAbsolute:
+        x: 561.0259369853857
+        y: 253.27705608122488
+      selectable: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom-iteration-start
+      width: 44
+      zIndex: 1002
+    - data:
+        classes:
+        - id: '1'
+          name: 需要联网搜索的问题
+        - id: '2'
+          name: 不需要联网搜索的问题
+        desc: ''
+        instructions: ''
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/tongyi/tongyi
+        query_variable_selector:
+        - '1755689716614'
+        - sys.query
+        selected: false
+        title: 联网意图识别
+        topics: []
+        type: question-classifier
+        vision:
+          enabled: false
+      height: 172
+      id: '1756044135146'
+      position:
+        x: -368.6311896854215
+        y: 253.02326096405676
+      positionAbsolute:
+        x: -368.6311896854215
+        y: 253.02326096405676
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: ''
+        model:
+          completion_params:
+            enable_thinking: false
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/tongyi/tongyi
+        prompt_template:
+        - id: 74d59a93-ee97-4cb4-a976-a6fe38ea2880
+          role: system
+          text: "# 智能问题改写系统\n\n## 角色定位\n您是一位专业的语义改写专家，能够保持原意的前提下优化用户问题表达。\n\n## 任务说明\n\
+            分析用户输入的问题，判断是否需要改写以及需要生成的改写版本数量（最多3个）。\n改写时可参考用户提供的上下游信息和私域知识库内容，确保改写版本：\n\
+            - 保持原始问题的核心意图不变\n- 每个版本表达方式互不相同\n- 均以问句形式呈现\n\n## 判断标准\n- 是否需要改写：评估原问题的清晰度、准确性和完整性\n\
+            - 改写数量：根据问题复杂度和可能的表达方式确定（1-3个）\n\n## 输出要求\n必须返回JSON格式，其中result字段必须是列表，包含用户原始query和所有改写结果：\n\
+            {\n    \"result\": [ \"改写版本1\", \"改写版本2\", \"...\"]\n}"
+        - id: 3101e2c8-207f-4f8e-98d9-4e645409e680
+          role: user
+          text: 用户的问题：{{#sys.query#}}。当前的时间是2025-08-26
+        selected: false
+        title: 问题改写
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 90
+      id: '1756045460846'
+      position:
+        x: -67.03723975758584
+        y: 292.7230871547666
+      positionAbsolute:
+        x: -67.03723975758584
+        y: 292.7230871547666
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: "\nimport json\ndef main(text: str) -> dict:\n    if text.startswith('```json'):\n\
+          \        text = text[7:-3]\n    result = json.loads(text)\n    array = result['result']\n\
+          \    depth = len(array)\n    return {\n        \"array\": array,\n     \
+          \   \"depth\": depth\n    }\n"
+        code_language: python3
+        desc: ''
+        outputs:
+          array:
+            children: null
+            type: array[string]
+          depth:
+            children: null
+            type: number
+        selected: false
+        title: 代码执行
+        type: code
+        variables:
+        - value_selector:
+          - '1756045460846'
+          - text
+          variable: text
+      height: 54
+      id: '1756045587974'
+      position:
+        x: 240.57183535066042
+        y: 292.7230871547666
+      positionAbsolute:
+        x: 240.57183535066042
+        y: 292.7230871547666
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          config:
+            api_key: bce-v3/YOUR_BAIDU_API_KEY
+            type: bearer
+          type: api-key
+        body:
+          data:
+          - id: key-value-427
+            key: ''
+            type: text
+            value: "{\n    \"messages\": [\n        {\n            \"content\": \"\
+              {{#1756023315127.item#}}\",\n            \"role\": \"user\"\n      \
+              \  }\n    ],\n\"resource_type_filter\": [\n{\"type\": \"web\", \"top_k\"\
+              : 5}\n]\n}"
+          type: json
+        desc: ''
+        headers: Content-Type:application/json
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1756023315127'
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP 请求
+        type: http-request
+        url: https://qianfan.baidubce.com/v2/ai_search/chat/completions
+        variables: []
+      height: 126
+      id: '1756045841366'
+      parentId: '1756023315127'
+      position:
+        x: 113.23213332154785
+        y: 118.54896178529401
+      positionAbsolute:
+        x: 650.2580703069335
+        y: 303.8260178665189
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+      zIndex: 1002
+    - data:
+        code: "\nimport json\ndef main(res: str, req: str) -> dict:\n    data = {\"\
+          search_topic\":req,\"search_result\": res}\n    return {\n        \"result\"\
+          : json.dumps(data, ensure_ascii=False),\n    }\n"
+        code_language: python3
+        desc: ''
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1756023315127'
+        outputs:
+          result:
+            children: null
+            type: string
+        selected: false
+        title: 代码执行 2
+        type: code
+        variables:
+        - value_selector:
+          - '1756045841366'
+          - body
+          variable: res
+        - value_selector:
+          - '1756023315127'
+          - item
+          variable: req
+      height: 54
+      id: '1756046176566'
+      parentId: '1756023315127'
+      position:
+        x: 386.83947933529964
+        y: 172.09792357058808
+      positionAbsolute:
+        x: 923.8654163206853
+        y: 357.37497965181296
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+      zIndex: 1002
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: ''
+        model:
+          completion_params: {}
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/tongyi/tongyi
+        prompt_template:
+        - id: 499e35ce-bda6-4071-982a-a405ab088f02
+          role: system
+          text: 你是一个ai助手，请耐心回答用户的问题。整合用户问题以及联网搜索结果，给出用户问题的最终答案
+        - id: 21379567-f452-4cfe-a8f8-a70b1bb11921
+          role: user
+          text: '##下面是用户的问题 ：
+
+            【{{#sys.query#}}】
+
+
+            ##联网搜索的结果
+
+            【{{#1756189035885.result#}}】 '
+        selected: false
+        title: 信息整合回答
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 90
+      id: '1756046349071'
+      position:
+        x: 1742.4186716031732
+        y: 297.47699613261705
+      positionAbsolute:
+        x: 1742.4186716031732
+        y: 297.47699613261705
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        answer: '{{#1756046349071.text#}}'
+        desc: ''
+        selected: false
+        title: 直接回复
+        type: answer
+        variables: []
+      height: 105
+      id: '1756046662447'
+      position:
+        x: 2137.5811228949287
+        y: 308.8471443224316
+      positionAbsolute:
+        x: 2137.5811228949287
+        y: 308.8471443224316
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: ''
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/tongyi/tongyi
+        prompt_template:
+        - id: 4f1ed4e5-4f95-4980-aef8-7ba6236f6d2b
+          role: system
+          text: 你是一个ai助手。 用户的问题不需要联网查找资料，可以直接回答
+        selected: false
+        title: 不联网直接回答
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 90
+      id: '1756046728919'
+      position:
+        x: -67.03723975758584
+        y: 502.5548401046023
+      positionAbsolute:
+        x: -67.03723975758584
+        y: 502.5548401046023
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        answer: '{{#1756046728919.text#}}'
+        desc: ''
+        selected: false
+        title: 直接回复 2
+        type: answer
+        variables: []
+      height: 105
+      id: '1756046787448'
+      position:
+        x: -76.43544254419061
+        y: 749.7912000807016
+      positionAbsolute:
+        x: -76.43544254419061
+        y: 749.7912000807016
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: "\nimport json\ndef main(items: list) -> dict:\n    result = f\"本次联网搜索结果为{len(items)}条，结果为：\"\
+          \n    return {\n        \"result\": result + json.dumps(items, ensure_ascii=False),\n\
+          \    }\n"
+        code_language: python3
+        desc: ''
+        outputs:
+          result:
+            children: null
+            type: string
+        selected: false
+        title: 代码执行 3
+        type: code
+        variables:
+        - value_selector:
+          - '1756023315127'
+          - output
+          variable: items
+      height: 54
+      id: '1756189035885'
+      position:
+        x: 1466.1263192266197
+        y: 443.85964057564354
+      positionAbsolute:
+        x: 1466.1263192266197
+        y: 443.85964057564354
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 505.7091626482795
+      y: 123.29556908270871
+      zoom: 0.4095183489299137

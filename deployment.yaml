@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aira-workflow
+  labels:
+    app: aira-workflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aira-workflow
+  template:
+    metadata:
+      labels:
+        app: aira-workflow
+    spec:
+      containers:
+      - name: aira-workflow
+        image: ${image}
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            cpu: '2'
+            memory: 4Gi
+          requests:
+            cpu: '2'
+            memory: 4Gi
+      imagePullSecrets:
+        - name: aiplatform-docker-repository-acr 

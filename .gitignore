@@ -1,0 +1,67 @@
+# Python编译文件
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+
+# Python虚拟环境
+venv/
+env/
+ENV/
+
+# IDE和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 密钥 / 本地配置 (Secrets / local config)
+.env
+.env.*
+.env_*
+!.env.example
+*.pem
+*.key
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.temp
+
+# 测试覆盖率报告
+.coverage
+htmlcov/
+.pytest_cache/
+
+# 分发和打包
+dist/
+build/
+*.egg-info/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json

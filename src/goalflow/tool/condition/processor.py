@@ -1,0 +1,387 @@
+from collections.abc import Sequence
+from typing import Any, Literal, Dict
+
+from goalflow.tool.utils import VariableResolver
+from goalflow.state import GenericState
+from goalflow.workflow_types import Condition, SubCondition, SupportedComparisonOperator
+
+
+class ConditionProcessor:
+
+    def process_conditions(
+            self,
+            *,
+            variable_pool: Dict[str, Any],  # 合并了input_variables、output_variables、conversation_variables 的变量池
+            conditions: Sequence[Condition],
+            operator: Literal["and", "or"],
+            state: GenericState,
+    ):
+        """
+        评估每个 if-else case的条件结果
+        """
+        input_conditions = []
+        group_results = []
+        for condition in conditions:
+            variable_selector = condition.variable_selector
+            # 实际的变量值
+            node_id, variable_name = variable_selector
+            variable = f'{node_id}_{variable_name}'
+            if variable is None:
+                raise ValueError(f"Variable {condition.variable_selector} not found")
+            #
+            actual_value = VariableResolver.resolve_value_selector(variable_selector, state) if variable else None
+            expected_value = condition.value
+            if isinstance(expected_value, str):
+                expected_value = VariableResolver.replace_template(expected_value,
+                                                                   variable_pool)
+
+            input_conditions.append(
+                {
+                    "actual_value": actual_value,
+                    "expected_value": expected_value,
+                    "comparison_operator": condition.comparison_operator,
+                }
+            )
+            result = _evaluate_condition(
+                value=actual_value,
+                operator=condition.comparison_operator,
+                expected=expected_value,
+            )
+
+            group_results.append(result)
+            if (operator == "and" and not result) or (operator == "or" and result):
+                final_result = result
+                return input_conditions, group_results, final_result
+
+        final_result = all(group_results) if operator == "and" else any(group_results)
+        return input_conditions, group_results, final_result
+
+
+def _evaluate_condition(
+        *,
+        operator: SupportedComparisonOperator,
+        value: Any,
+        expected: str | Sequence[str] | None,
+) -> bool:
+    match operator:
+        case "contains":
+            return _assert_contains(value=value, expected=expected)
+        case "not contains":
+            return _assert_not_contains(value=value, expected=expected)
+        case "start with":
+            return _assert_start_with(value=value, expected=expected)
+        case "end with":
+            return _assert_end_with(value=value, expected=expected)
+        case "is":
+            return _assert_is(value=value, expected=expected)
+        case "is not":
+            return _assert_is_not(value=value, expected=expected)
+        case "empty":
+            return _assert_empty(value=value)
+        case "not empty":
+            return _assert_not_empty(value=value)
+        case "=":
+            return _assert_equal(value=value, expected=expected)
+        case "≠":
+            return _assert_not_equal(value=value, expected=expected)
+        case ">":
+            return _assert_greater_than(value=value, expected=expected)
+        case "<":
+            return _assert_less_than(value=value, expected=expected)
+        case "≥":
+            return _assert_greater_than_or_equal(value=value, expected=expected)
+        case "≤":
+            return _assert_less_than_or_equal(value=value, expected=expected)
+        case "null":
+            return _assert_null(value=value)
+        case "not null":
+            return _assert_not_null(value=value)
+        case "in":
+            return _assert_in(value=value, expected=expected)
+        case "not in":
+            return _assert_not_in(value=value, expected=expected)
+        case "all of" if isinstance(expected, list):
+            return _assert_all_of(value=value, expected=expected)
+        case "exists":
+            return _assert_exists(value=value)
+        case "not exists":
+            return _assert_not_exists(value=value)
+        case _:
+            raise ValueError(f"Unsupported operator: {operator}")
+
+
+def _assert_contains(*, value: Any, expected: Any) -> bool:
+    if not value:
+        return False
+
+    if not isinstance(value, str | list):
+        raise ValueError("Invalid actual value type: string or array")
+
+    if expected not in value:
+        return False
+    return True
+
+
+def _assert_not_contains(*, value: Any, expected: Any) -> bool:
+    if not value:
+        return True
+
+    if not isinstance(value, str | list):
+        raise ValueError("Invalid actual value type: string or array")
+
+    if expected in value:
+        return False
+    return True
+
+
+def _assert_start_with(*, value: Any, expected: Any) -> bool:
+    if not value:
+        return False
+
+    if not isinstance(value, str):
+        raise ValueError("Invalid actual value type: string")
+
+    if not value.startswith(expected):
+        return False
+    return True
+
+
+def _assert_end_with(*, value: Any, expected: Any) -> bool:
+    if not value:
+        return False
+
+    if not isinstance(value, str):
+        raise ValueError("Invalid actual value type: string")
+
+    if not value.endswith(expected):
+        return False
+    return True
+
+
+def _assert_is(*, value: Any, expected: Any) -> bool:
+    if value is None:
+        return False
+
+    if not isinstance(value, str | bool):
+        raise ValueError(f"Invalid actual value type: {type(value)}")
+
+    if value != expected:
+        return False
+    return True
+
+
+def _assert_is_not(*, value: Any, expected: Any) -> bool:
+    if value is None:
+        return False
+
+    if not isinstance(value, str):
+        raise ValueError("Invalid actual value type: string")
+
+    if value == expected:
+        return False
+    return True
+
+
+def _assert_empty(*, value: Any) -> bool:
+    if not value:
+        return True
+    return False
+
+
+def _assert_not_empty(*, value: Any) -> bool:
+    if value:
+        return True
+    return False
+
+
+def _assert_equal(*, value: Any, expected: Any) -> bool:
+    if value is None:
+        return False
+
+    if not isinstance(value, int | float):
+        raise ValueError("Invalid actual value type: number")
+
+    if isinstance(value, int):
+        expected = int(expected)
+    else:
+        expected = float(expected)
+
+    if value != expected:
+        return False
+    return True
+
+
+def _assert_not_equal(*, value: Any, expected: Any) -> bool:
+    if value is None:
+        return False
+
+    if not isinstance(value, int | float):
+        raise ValueError("Invalid actual value type: number")
+
+    if isinstance(value, int):
+        expected = int(expected)
+    else:
+        expected = float(expected)
+
+    if value == expected:
+        return False
+    return True
+
+
+def _assert_greater_than(*, value: Any, expected: Any) -> bool:
+    if value is None:
+        return False
+
+    if not isinstance(value, int | float):
+        raise ValueError("Invalid actual value type: number")
+
+    if isinstance(value, int):
+        expected = int(expected)
+    else:
+        expected = float(expected)
+
+    if value <= expected:
+        return False
+    return True
+
+
+def _assert_less_than(*, value: Any, expected: Any) -> bool:
+    if value is None:
+        return False
+
+    if not isinstance(value, int | float):
+        raise ValueError("Invalid actual value type: number")
+
+    if isinstance(value, int):
+        expected = int(expected)
+    else:
+        expected = float(expected)
+
+    if value >= expected:
+        return False
+    return True
+
+
+def _assert_greater_than_or_equal(*, value: Any, expected: Any) -> bool:
+    if value is None:
+        return False
+
+    if not isinstance(value, int | float):
+        raise ValueError("Invalid actual value type: number")
+
+    if isinstance(value, int):
+        expected = int(expected)
+    else:
+        expected = float(expected)
+
+    if value < expected:
+        return False
+    return True
+
+
+def _assert_less_than_or_equal(*, value: Any, expected: Any) -> bool:
+    if value is None:
+        return False
+
+    if not isinstance(value, int | float):
+        raise ValueError("Invalid actual value type: number")
+
+    if isinstance(value, int):
+        expected = int(expected)
+    else:
+        expected = float(expected)
+
+    if value > expected:
+        return False
+    return True
+
+
+def _assert_null(*, value: Any) -> bool:
+    if value is None:
+        return True
+    return False
+
+
+def _assert_not_null(*, value: Any) -> bool:
+    if value is not None:
+        return True
+    return False
+
+
+def _assert_in(*, value: Any, expected: Any) -> bool:
+    if not value:
+        return False
+
+    if not isinstance(expected, list):
+        raise ValueError("Invalid expected value type: array")
+
+    if value not in expected:
+        return False
+    return True
+
+
+def _assert_not_in(*, value: Any, expected: Any) -> bool:
+    if not value:
+        return True
+
+    if not isinstance(expected, list):
+        raise ValueError("Invalid expected value type: array")
+
+    if value in expected:
+        return False
+    return True
+
+
+def _assert_all_of(*, value: Any, expected: Sequence[str]) -> bool:
+    if not value:
+        return False
+
+    if not all(item in value for item in expected):
+        return False
+    return True
+
+
+def _assert_exists(*, value: Any) -> bool:
+    return value is not None
+
+
+def _assert_not_exists(*, value: Any) -> bool:
+    return value is None
+
+#
+# def _process_sub_conditions(
+#     variable: ArrayFileSegment,
+#     sub_conditions: Sequence[SubCondition],
+#     operator: Literal["and", "or"],
+# ) -> bool:
+#     files = variable.value
+#     group_results = []
+#     for condition in sub_conditions:
+#         key = FileAttribute(condition.key)
+#         values = [file_manager.get_attr(file=file, attr=key) for file in files]
+#         expected_value = condition.value
+#         if key == FileAttribute.EXTENSION:
+#             if not isinstance(expected_value, str):
+#                 raise TypeError("Expected value must be a string when key is FileAttribute.EXTENSION")
+#             if expected_value and not expected_value.startswith("."):
+#                 expected_value = "." + expected_value
+#
+#             normalized_values = []
+#             for value in values:
+#                 if value and isinstance(value, str):
+#                     if not value.startswith("."):
+#                         value = "." + value
+#                 normalized_values.append(value)
+#             values = normalized_values
+#         sub_group_results = [
+#             _evaluate_condition(
+#                 value=value,
+#                 operator=condition.comparison_operator,
+#                 expected=expected_value,
+#             )
+#             for value in values
+#         ]
+#         # Determine the result based on the presence of "not" in the comparison operator
+#         result = all(sub_group_results) if "not" in condition.comparison_operator else any(sub_group_results)
+#         group_results.append(result)
+#     return all(group_results) if operator == "and" else any(group_results)

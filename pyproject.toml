@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "goalflow"
+version = "0.1.0"
+description = "Graph-Orchestrated Agent Loop — a framework for building LLM workflows and agents on LangGraph, with a Dify DSL transpiler and pluggable wire protocols."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "goalflow contributors" }]
+keywords = ["langgraph", "llm", "agent", "workflow", "dify", "orchestration"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dynamic = ["dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/your-org/goalflow"
+Repository = "https://github.com/your-org/goalflow"
+
+[project.scripts]
+goalflow-server = "goalflow.app:main"
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test_*.py", "*_test.py"]
+pythonpath = ["src", "."]
