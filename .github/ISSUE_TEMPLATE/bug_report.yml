@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a problem with goalflow
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please do **not** include real credentials,
+        internal hostnames, or IPs. For security issues, do not file a public
+        issue — see the security checklist instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+      placeholder: When I run ..., I get ..., but I expected ...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps (commands, request body, DSL snippet) to reproduce.
+      placeholder: |
+        1. Register workflow ...
+        2. POST /v1/chat-messages with ...
+        3. See error ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / traceback
+      description: Paste any error output. Redact secrets first.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Version / commit
+      description: git commit SHA or release you're on.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Python version, OS, and whether Redis/MySQL are standalone or clustered.
+      placeholder: Python 3.12, Ubuntu 22.04, MySQL 8.0, Redis standalone
+    validations:
+      required: true

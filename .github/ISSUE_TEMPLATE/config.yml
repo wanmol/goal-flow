@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/wanmol/goal-flow/security/advisories/new
+    about: Please report security issues privately, not as a public issue. See docs/security-and-open-sourcing.md.
+  - name: Questions & documentation
+    url: https://github.com/wanmol/goal-flow/tree/main/docs
+    about: Check the docs before filing an issue — getting-started, tutorials, and the API reference live here.

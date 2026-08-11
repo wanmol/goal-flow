@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root-pw
+          MYSQL_DATABASE: workflow
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -p$MYSQL_ROOT_PASSWORD"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      FASTAPI_ENV: test
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ci-root-pw
+      MYSQL_DB: workflow
+      REDIS_ENABLED: "True"
+      REDIS_MODEL: standalone
+      REDIS_CLUSTERS: 127.0.0.1:6379
+      REDIS_USERNAME: default
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+      # Placeholder LLM keys so imports that read env don't crash. Not real.
+      DASHSCOPE_KEY: ci-placeholder
+      DASHSCOPE_ENDPOINT: https://example.invalid/v1
+      OPENAI_KEY: ci-placeholder
+      OPENAI_ENDPOINT: https://example.invalid/
+      TRACE_SWITCH_ON: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+
+      - name: Byte-compile (syntax check)
+        run: python -m compileall -q src/
+
+      - name: Run framework tests
+        run: python -m pytest test/ -q
+
+      - name: Run agent_kit tests
+        run: |
+          if [ -d src/agent_kit/tests ]; then
+            python -m pytest src/agent_kit/tests -q
+          else
+            echo "no src/agent_kit/tests directory; skipping"
+          fi
