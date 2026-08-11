@@ -18,7 +18,7 @@ import os
 import uvicorn
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from langchain_community.chat_models import ChatTongyi
 
 from goalflow.utils import ChatCompletionRequestCache
@@ -573,13 +573,19 @@ def format_stream_chunk(
 @app.exception_handler(WorkflowError)
 def workflow_error_handler(request, exc: WorkflowError):
     """Handle workflow-specific errors."""
-    return {"error": "WorkflowError", "message": str(exc), "status_code": 400}
+    return JSONResponse(
+        status_code=400,
+        content={"error": "WorkflowError", "message": str(exc)},
+    )
 
 
 @app.exception_handler(StateValidationError)
 def state_validation_error_handler(request, exc: StateValidationError):
     """Handle state validation errors."""
-    return {"error": "StateValidationError", "message": str(exc), "status_code": 400}
+    return JSONResponse(
+        status_code=400,
+        content={"error": "StateValidationError", "message": str(exc)},
+    )
 
 
 def _extract_json_from_markdown(content: str) -> str:
@@ -616,6 +622,12 @@ def get_message_suggested(user: str, message_id: str,request_body:dict={}):
     request_body = request_body or {}
     tpl_id = request_body.get("tpl_id", "")
     prompt_template:str = suggest_q_tpl_map.get(tpl_id, "")
+
+    if tpl_id and not prompt_template:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown tpl_id: {tpl_id}",
+        )
     
     message = MessageService.get_by_message_id(message_id)
     if message is not None:
@@ -625,11 +637,12 @@ def get_message_suggested(user: str, message_id: str,request_body:dict={}):
         histories = histories[::-1]
         _len = min(len(histories), 3)
         histories = histories[-_len:] or []
-        
+
+        prompt = ""
         client = ChatTongyi(
                 api_key=os.environ['DASHSCOPE_KEY'],
                 base_url=os.environ['DASHSCOPE_ENDPOINT'],
-                model="qwen2.5-14b-instruct",
+                model="deepseek-v4-flash",
                 model_kwargs={"max_tokens": 256, "temperature": 0},
                 streaming=False,
         )
@@ -674,7 +687,7 @@ def get_message_suggested2(user: str, message_id: str):
             client = ChatTongyi(
                 api_key=os.environ['DASHSCOPE_KEY'],
                 base_url=os.environ['DASHSCOPE_ENDPOINT'],
-                model="qwen2.5-14b-instruct",
+                model="deepseek-v4-flash",
                 model_kwargs={"max_tokens": 256, "temperature": 0},
                 streaming=False,
             )
