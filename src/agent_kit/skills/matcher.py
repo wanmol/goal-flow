@@ -1,14 +1,14 @@
-"""SkillMatcher：基于 LLM 的 skill 匹配器。
+"""SkillMatcher: an LLM-based skill matcher.
 
-设计：
-- LLM 通过 ``HARNESS_ROUTER.get(task_type)`` 拿，业务零硬依赖
-- prompt 通过 ``HARNESS_PROMPTS.render(prompt_name, query=..., skills_json=...)`` 渲染
-- 内置 fallback prompt 已经在 ``ensure_default_prompt_registered()`` 里注册到 HARNESS_PROMPTS，
-  业务什么都不配也能跑（用 LLM 默认 + fallback prompt）
-- 失败容忍：LLM 异常 / JSON 解析失败 → 返回空列表，**绝不让 skill 匹配拖垮主 Agent**
+Design:
+- The LLM is obtained via ``HARNESS_ROUTER.get(task_type)``, zero hard dependency for business code
+- The prompt is rendered via ``HARNESS_PROMPTS.render(prompt_name, query=..., skills_json=...)``
+- The built-in fallback prompt is already registered to HARNESS_PROMPTS in ``ensure_default_prompt_registered()``,
+  so it runs even with no business configuration (using the LLM default + fallback prompt)
+- Failure tolerant: LLM exception / JSON parse failure → return an empty list, **never let skill matching drag down the main Agent**
 
-业务可注入自定义 matcher：实现 ``Matcher`` 协议（``match(query, manifests, top_k, threshold) -> list[MatchResult]``）
-即可，例如 embedding-based、规则-based。
+Business can inject a custom matcher: just implement the ``Matcher`` protocol (``match(query, manifests, top_k, threshold) -> list[MatchResult]``),
+e.g. embedding-based or rule-based.
 """
 from __future__ import annotations
 
@@ -25,11 +25,11 @@ DEFAULT_TASK_TYPE = "agent_kit.skill_match"
 DEFAULT_PROMPT_NAME = "agent_kit.skill_match"
 
 
-# ───────────────────── Matcher 协议 ─────────────────────
+# ───────────────────── Matcher protocol ─────────────────────
 
 @runtime_checkable
 class Matcher(Protocol):
-    """业务可注入的 matcher 协议。"""
+    """The matcher protocol that business code can inject."""
 
     def match(
         self,
@@ -41,10 +41,10 @@ class Matcher(Protocol):
     ) -> list[MatchResult]: ...
 
 
-# ───────────────────── 默认 LLM Matcher ─────────────────────
+# ───────────────────── Default LLM Matcher ─────────────────────
 
 class SkillMatcher:
-    """默认 LLM-based matcher。"""
+    """The default LLM-based matcher."""
 
     def __init__(
         self,
@@ -55,10 +55,10 @@ class SkillMatcher:
     ):
         """
         Args:
-            task_type: HARNESS_ROUTER 路由 key；业务可在启动时
-                ``HARNESS_ROUTER.configure("agent_kit.skill_match", ...)`` 自定义模型
-            prompt_name: HARNESS_PROMPTS 注册的 prompt 名；业务可注册同名 prompt 覆盖
-            llm_factory: 单测专用注入；不为 None 时跳过 HARNESS_ROUTER
+            task_type: the HARNESS_ROUTER routing key; business can customize the model at startup via
+                ``HARNESS_ROUTER.configure("agent_kit.skill_match", ...)``
+            prompt_name: the prompt name registered in HARNESS_PROMPTS; business can register a same-named prompt to override
+            llm_factory: injection for unit tests only; when not None, skips HARNESS_ROUTER
         """
         self._task_type = task_type
         self._prompt_name = prompt_name
@@ -75,21 +75,21 @@ class SkillMatcher:
         if not manifests:
             return []
 
-        # 渲染 prompt
+        # Render prompt
         try:
             prompt_text = self._render_prompt(query, manifests)
         except Exception as e:
             logger.warning("SkillMatcher: prompt render failed: %s", e)
             return []
 
-        # 拿 LLM
+        # Get LLM
         try:
             llm = self._get_llm()
         except Exception as e:
             logger.warning("SkillMatcher: get LLM failed: %s", e)
             return []
 
-        # 调用 LLM
+        # Invoke LLM
         try:
             from langchain_core.messages import HumanMessage
 
@@ -99,7 +99,7 @@ class SkillMatcher:
             logger.warning("SkillMatcher: LLM invoke failed: %s", e)
             return []
 
-        # 解析 JSON
+        # Parse JSON
         results = _parse_response(content)
         results = [r for r in results if r.confidence >= threshold]
         results.sort(key=lambda r: r.confidence, reverse=True)
@@ -129,7 +129,7 @@ class SkillMatcher:
         )
 
 
-# ───────────────────── 默认 fallback prompt ─────────────────────
+# ───────────────────── Default fallback prompt ─────────────────────
 
 DEFAULT_PROMPT_TEMPLATE = """\
 你是一个技能匹配器。给定用户的 query 和可用技能列表，选出与 query 最相关的技能。
@@ -152,34 +152,34 @@ DEFAULT_PROMPT_TEMPLATE = """\
 
 
 def _default_prompt_fallback(*, query: str = "", skills_json: str = "", **_) -> str:
-    """HARNESS_PROMPTS fallback callable。业务可通过注册同名 prompt 覆盖。"""
+    """HARNESS_PROMPTS fallback callable. Business can override by registering a same-named prompt."""
     return DEFAULT_PROMPT_TEMPLATE.format(query=query, skills_json=skills_json)
 
 
 def ensure_default_prompt_registered(prompt_name: str = DEFAULT_PROMPT_NAME) -> None:
-    """把默认 skill match prompt 注册到 HARNESS_PROMPTS（幂等）。
+    """Register the default skill match prompt to HARNESS_PROMPTS (idempotent).
 
-    SkillOrchestrator.match_and_augment() 会自动调用这个；业务也可以手动调一次后
-    通过 ``HARNESS_PROMPTS.register()`` 用自己的版本覆盖。
+    SkillOrchestrator.match_and_augment() calls this automatically; business can also call it once manually
+    and then override with its own version via ``HARNESS_PROMPTS.register()``.
     """
     from agent_kit.harness.prompt_registry import HARNESS_PROMPTS
 
-    # 已注册同名的就别覆盖（业务可能已经注册了 Langfuse 版本）
+    # If a same-named one is already registered, don't override (business may have registered a Langfuse version)
     if prompt_name in HARNESS_PROMPTS._specs:  # type: ignore[attr-defined]
         return
     HARNESS_PROMPTS.register(prompt_name, fallback_callable=_default_prompt_fallback)
 
 
-# ───────────────────── JSON 解析 ─────────────────────
+# ───────────────────── JSON parsing ─────────────────────
 
 def _parse_response(content: str) -> list[MatchResult]:
-    """LLM 输出 → MatchResult 列表。容忍 markdown 代码块、单对象、非法项。"""
+    """LLM output → list of MatchResult. Tolerates markdown code blocks, single objects, invalid items."""
     if not content:
         return []
     cleaned = content.strip()
-    # 去掉 markdown 代码块包裹
+    # Strip markdown code block wrapping
     if cleaned.startswith("```"):
-        # 去第一行 ``` 或 ```json
+        # Remove the first line ``` or ```json
         first_nl = cleaned.find("\n")
         if first_nl != -1:
             cleaned = cleaned[first_nl + 1:]

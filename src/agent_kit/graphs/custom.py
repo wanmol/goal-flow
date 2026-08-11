@@ -1,11 +1,11 @@
-"""CustomGraphBuilder：用户自定义 graph 构造策略。
+"""CustomGraphBuilder: a user-defined graph construction strategy.
 
-定位：业务需要完全自定义状态机（手拼 ``StateGraph``、议价 Tit-for-Tat、复核流水线
-等）时使用。把构造函数当作 callable 注入。
+Purpose: use it when business code needs a fully custom state machine (hand-assembled ``StateGraph``,
+Tit-for-Tat negotiation, review pipelines, etc.). The construction function is injected as a callable.
 
-构造参数：
-- ``builder_fn``：``Callable[..., CompiledGraph]``，签名约定与 ``GraphBuilder.build`` 一致
-  （接 ``model`` / ``tools`` / ``middleware`` / ``output_schema`` / ``**extra``）
+Constructor arguments:
+- ``builder_fn``: ``Callable[..., CompiledGraph]``, with a signature matching ``GraphBuilder.build``
+  (accepts ``model`` / ``tools`` / ``middleware`` / ``output_schema`` / ``**extra``)
 """
 from __future__ import annotations
 
@@ -18,9 +18,9 @@ BuilderFn = Callable[..., Any]
 
 
 class CustomGraphBuilder:
-    """用户传 callable 的 GraphBuilder。
+    """A GraphBuilder that takes a user-supplied callable.
 
-    用法::
+    Usage::
 
         def my_builder(*, model, tools, middleware, output_schema=None, **kw):
             g = StateGraph(MyState)

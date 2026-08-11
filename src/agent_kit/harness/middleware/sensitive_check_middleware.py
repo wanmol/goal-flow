@@ -51,14 +51,14 @@ def _get_last_human_message_text(messages: list[Any]) -> str | None:
 
 class SensitiveCheckMiddleware(AgentMiddleware[ContextAgentState, ContextT, ResponseT]):
     """
-    Agent 执行前对用户输入做敏感词校验；未通过则短路至 end 并返回合规话术。
+    Runs a sensitive-word check on user input before Agent execution; on failure, short-circuits to end and returns compliance wording.
 
-    校验逻辑复用 utils.sensitive_identification。
+    The check logic reuses utils.sensitive_identification.
 
-    runtime.context 可选配置：
-    - sensitive_check_enabled (bool): 是否启用，默认 True
-    - sensitive_check_type (str): "text" | "text_to_img"，默认 "text"
-    - sensitive_rejection_reply (str): 拒绝时的回复文案
+    Optional runtime.context config:
+    - sensitive_check_enabled (bool): whether enabled, default True
+    - sensitive_check_type (str): "text" | "text_to_img", default "text"
+    - sensitive_rejection_reply (str): the reply wording on rejection
     """
 
     @override

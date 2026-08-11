@@ -1,17 +1,17 @@
-"""Agent：新公开入口（替代 ``AgentRuntime``）。
+"""Agent: the new public entry point (replaces ``AgentRuntime``).
 
-设计意图（ADR-003）：
-- 把 ``AgentRuntime`` 的 12 钩子压缩到 4 个抽象 + 2 个可选
-- 所有"切面"（短路、跳过 LLM、敏感词、历史、兜底、流式、metrics、langfuse、skills）
-  通过外部传 ``middleware=[...]`` 接入
-- 三个底层 graph API（``create_agent`` / ``create_deep_agent`` / 自定义 graph）
-  改为 ``GraphBuilder`` 策略对象，构造时注入
-- 治理依赖（LLM 路由 / Prompt 注册表 / Tracer / Profiles）通过 ``Harness`` 实例
-  显式注入，不再依赖全局单例
+Design intent (ADR-003):
+- Compress ``AgentRuntime``'s 12 hooks into 4 abstract + 2 optional
+- All "aspects" (short-circuit, skip LLM, sensitive words, history, fallback, streaming, metrics, langfuse, skills)
+  are plugged in externally via ``middleware=[...]``
+- The three underlying graph APIs (``create_agent`` / ``create_deep_agent`` / custom graph)
+  become ``GraphBuilder`` strategy objects, injected at construction time
+- Governance dependencies (LLM routing / prompt registry / tracer / profiles) are injected
+  explicitly via a ``Harness`` instance, no longer relying on global singletons
 
-老 ``AgentRuntime`` 继续可用（P2 已加 DeprecationWarning）。两套 API 并存。
+The legacy ``AgentRuntime`` remains usable (P2 already added a DeprecationWarning). The two API sets coexist.
 
-最小用法（Agent 本身工作流无关，``run()`` 返回 ``format_output`` 的产物）::
+Minimal usage (Agent itself is workflow-agnostic; ``run()`` returns the product of ``format_output``)::
 
     class MyAgent(Agent[MyOutput]):
         name = "my_classifier"
@@ -20,21 +20,21 @@
             return MyOutput
 
         def build_prompt(self, state):
-            return "你是一个分类器。"
+            return "You are a classifier."
 
-        # format_output 默认透传；若要 typed parsing 等可选 override
+        # format_output passes through by default; override for typed parsing etc.
         # def format_output(self, state, output): return output
 
     agent = MyAgent(model="qwen-plus", tools=[my_tool])
-    output = agent.run({}, "我要找税务筹划公司")
-    # output 是 MyOutput 实例（structured_response 命中）或 str（messages 末尾文本）
+    output = agent.run({}, "I'm looking for a tax planning firm")
+    # output is a MyOutput instance (structured_response hit) or str (trailing messages text)
 
-工作流场景（继承 ``node.agent_base.AgentBaseNode``）::
+Workflow scenario (inherit ``node.agent_base.AgentBaseNode``)::
 
     class MyNode(AgentBaseNode[MyOutput]):
         name = "my_classifier"
         def output_schema(self): return MyOutput
-        def build_prompt(self, state): return "你是一个分类器。"
+        def build_prompt(self, state): return "You are a classifier."
         def build_command(self, state, output):
             return Command(update={"reply": output.reply, "label": output.label})
 """
@@ -61,12 +61,12 @@ logger = logging.getLogger(__name__)
 OutputT = TypeVar("OutputT", bound=BaseModel)
 
 
-# 默认 thread_id —— 业务通常会通过 RunnableConfig 提供
+# Default thread_id -- business code usually supplies one via RunnableConfig
 _DEFAULT_THREAD_ID = "agent_default"
 
 
 def _extract_text(content: Any) -> str:
-    """归一化消息 content 为 plain str（兼容 list-of-dict 形态）。"""
+    """Normalize message content to a plain str (tolerating list-of-dict form)."""
     if content is None:
         return ""
     if isinstance(content, str):
@@ -86,7 +86,7 @@ def _extract_text(content: Any) -> str:
 
 
 def _extract_last_reply(messages: list) -> str:
-    """从消息流末尾找最后一条非 tool_call 的 AI 文本作为 reply。"""
+    """Find the last non-tool_call AI text from the tail of the message stream as the reply."""
     for m in reversed(messages or []):
         if isinstance(m, AIMessage):
             if getattr(m, "tool_calls", None) and not m.content:
@@ -102,32 +102,32 @@ from deepagents.middleware.subagents import (
 )
 from deepagents.middleware.async_subagents import AsyncSubAgent
 
-# 不支持 AsyncSubAgent，CompiledSubAgent；  目前只有 SubAgent 支持middleware， subagent需要通过middleware初始化上下文隔离功能
+# AsyncSubAgent and CompiledSubAgent are not supported; currently only SubAgent supports middleware, and subagents need to initialize context-isolation via middleware
 _SubAgentType = SubAgent 
 #_SubAgentType = SubAgent | CompiledSubAgent | AsyncSubAgent
 
 
 class Agent(ABC, Generic[OutputT]):
-    """统一 Agent 入口（工作流无关）。
+    """Unified Agent entry point (workflow-agnostic).
 
-    子类必须实现：
-    - ``output_schema() -> type[BaseModel]``：声明结构化输出形态
-    - ``build_prompt(state) -> str``：构造 system prompt
+    Subclasses must implement:
+    - ``output_schema() -> type[BaseModel]``: declare the structured output shape
+    - ``build_prompt(state) -> str``: construct the system prompt
 
-    可选 override：
-    - ``format_user_input(state, query) -> str``：自定义 user 消息体；默认透传 ``query``
-    - ``format_output(state, output) -> Any``：格式化 graph 原始输出；默认透传
+    Optional overrides:
+    - ``format_user_input(state, query) -> str``: customize the user message body; passes ``query`` through by default
+    - ``format_output(state, output) -> Any``: format the graph's raw output; passes through by default
 
-    把"翻译为 Command / dict / 其它框架特定输出"留给工作流适配层（如
-    ``node.agent_base.AgentBaseNode.build_command``），保持 Agent 本身可独立测试、
-    可在非 workflow 场景使用。
+    Translating "to a Command / dict / other framework-specific output" is left to the
+    workflow adaptation layer (e.g. ``node.agent_base.AgentBaseNode.build_command``), keeping
+    the Agent itself independently testable and usable outside workflow scenarios.
 
-    所有"切面"行为（短路、跳过、兜底、流式、metrics、历史、敏感词、skills）
-    都通过 ``middleware=[...]`` 注入，不再是钩子。
+    All "aspect" behaviors (short-circuit, skip, fallback, streaming, metrics, history, sensitive words, skills)
+    are injected via ``middleware=[...]`` rather than being hooks.
     """
 
     name: str = "agent"
-    """Agent 标识；同时充当 ``harness.router.get(name)`` 的 task_type、metric 前缀等。"""
+    """Agent identifier; also serves as the task_type for ``harness.router.get(name)``, metric prefix, etc."""
 
     def __init__(
         self,
@@ -140,17 +140,17 @@ class Agent(ABC, Generic[OutputT]):
         harness: Optional[Any] = None,
         cache_graph: bool = True,
     ):
-        """构造一个 Agent 实例。
+        """Construct an Agent instance.
 
-        :param model: LLM 实例 / 模型名字符串 / None。
-            - ``None`` 且 ``harness`` 已提供：从 ``harness.router.get(self.name)`` 拿
-            - ``str``：通过 ``langchain.chat_models.init_chat_model`` 实例化
-            - 其它：当作 ``BaseChatModel`` 直接用
-        :param tools: 业务工具（``BaseTool`` 实例）
-        :param middleware: 中间件链；执行顺序按列表顺序
-        :param graph_builder: ``GraphBuilder`` 实例；默认 ``ReactGraphBuilder()``
-        :param harness: ``Harness`` 实例；用于 LLM 路由 + 治理能力注入
-        :param cache_graph: 是否复用编译产物。``True`` 时 graph 只构建一次
+        :param model: LLM instance / model-name string / None.
+            - ``None`` and ``harness`` provided: fetched from ``harness.router.get(self.name)``
+            - ``str``: instantiated via ``langchain.chat_models.init_chat_model``
+            - otherwise: used directly as a ``BaseChatModel``
+        :param tools: business tools (``BaseTool`` instances)
+        :param middleware: middleware chain; execution order follows list order
+        :param graph_builder: ``GraphBuilder`` instance; defaults to ``ReactGraphBuilder()``
+        :param harness: ``Harness`` instance; used for LLM routing + governance capability injection
+        :param cache_graph: whether to reuse the compiled product. When ``True``, the graph is built only once
         """
         self._model = model
         self._tools = list(tools)
@@ -161,43 +161,44 @@ class Agent(ABC, Generic[OutputT]):
         self._compiled: Optional[Any] = None
         self._subagents = list(subagents or [])
 
-    # ───── 子类必须实现的 3 个抽象钩子 ───────────────────
+    # ───── The 3 abstract hooks subclasses must implement ───────────────────
 
     @abstractmethod
     def output_schema(self) -> type[OutputT]:
-        """声明本 Agent 的结构化输出形态。``ReactGraphBuilder`` /
-        ``DeepGraphBuilder`` 会把这个 schema 传给 ``response_format`` 参数。
+        """Declare this Agent's structured output shape. ``ReactGraphBuilder`` /
+        ``DeepGraphBuilder`` pass this schema to the ``response_format`` parameter.
         """
 
     @abstractmethod
     def build_prompt(self, state: Any) -> str:
-        """构造 system prompt。每次 run 时调用一次。"""
+        """Construct the system prompt. Called once per run."""
 
-    # ───── 可选 override（默认实现透传） ─────────────────
+    # ───── Optional overrides (default implementation passes through) ─────────────────
 
     def format_user_input(self, state: Any, query: str) -> str:
-        """格式化用户输入为发给 LLM 的 message 内容。默认透传。"""
+        """Format user input into the message content sent to the LLM. Passes through by default."""
         return query
 
     def format_output(self, state: Any, output: Any) -> Any:
-        """格式化 graph 原始输出。默认透传——返回 ``output`` 原样。
+        """Format the graph's raw output. Passes through by default -- returns ``output`` as-is.
 
-        ``output`` 可能是：
-        - ``output_schema()`` 的实例（如果 graph 启用了 structured_response）
-        - 普通字符串（最后一条 AI 文本回复）
+        ``output`` may be:
+        - an instance of ``output_schema()`` (if the graph enabled structured_response)
+        - a plain string (the last AI text reply)
 
-        子类可 override 做 typed parsing、字段抽取、post-process 等。
+        Subclasses may override to do typed parsing, field extraction, post-processing, etc.
 
-        **不再把"翻译为 Command"作为 Agent 的职责** —— 工作流层（如
-        ``AgentBaseNode.build_command``）负责把 ``format_output`` 的产物翻译为
-        框架特定的输出（``Command`` / ``dict`` / 其它）。Agent 本身保持工作流无关。
+        **Translating "to a Command" is no longer the Agent's responsibility** -- the workflow layer
+        (e.g. ``AgentBaseNode.build_command``) is responsible for translating the ``format_output``
+        product into framework-specific output (``Command`` / ``dict`` / other). The Agent itself
+        stays workflow-agnostic.
         """
         return output
 
-    # ───── 内部：model / graph 解析 ──────────────────────
+    # ───── Internal: model / graph resolution ──────────────────────
 
     def _resolve_model(self) -> Any:
-        """三态解析 model：直接传入 > model 字符串 > harness.router.get(name)。"""
+        """Tri-state model resolution: directly passed > model string > harness.router.get(name)."""
         if self._model is not None and not isinstance(self._model, str):
             return self._model
         if isinstance(self._model, str):
@@ -225,7 +226,7 @@ class Agent(ABC, Generic[OutputT]):
         if self._graph_builder is not None:
             return self._graph_builder
         
-        # 如果有 subagents，强制使用 DeepGraphBuilder， 只有deepagent支持subagents
+        # If there are subagents, force DeepGraphBuilder (only deepagent supports subagents)
         if self._subagents:
             for subagent in self._subagents:
                 if not isinstance(subagent, _SubAgentType):
@@ -234,7 +235,7 @@ class Agent(ABC, Generic[OutputT]):
                     )
                 
                 sub_middleware = subagent.get("middleware", [])
-                # 插入 SubAgentInitializeMiddleware 到 middleware 首位, 初始化子agent的messages参数
+                # Insert SubAgentInitializeMiddleware at the front of middleware to initialize the subagent's messages parameter
                 sub_middleware.insert(0, SubAgentInitializeMiddleware())
                 subagent["middleware"] = sub_middleware
                 
@@ -242,11 +243,11 @@ class Agent(ABC, Generic[OutputT]):
                 subagents=self._subagents,
             )
     
-        # 默认 ReactGraphBuilder（最常用）
+        # Default ReactGraphBuilder (most common)
         return ReactGraphBuilder()
 
     def _compile(self) -> Any:
-        """编译 graph；按 ``cache_graph`` 决定复用。"""
+        """Compile the graph; reuse depends on ``cache_graph``."""
         if self._cache_graph and self._compiled is not None:
             return self._compiled
         builder = self._resolve_graph_builder()
@@ -261,10 +262,10 @@ class Agent(ABC, Generic[OutputT]):
         return graph
 
     def invalidate_graph(self) -> None:
-        """手动清编译缓存；下次 ``_compile`` 时重建。"""
+        """Manually clear the compile cache; rebuild on the next ``_compile``."""
         self._compiled = None
 
-    # ───── 执行入口 ──────────────────────────────────────
+    # ───── Execution entry point ──────────────────────────────────────
 
     def run(
         self,
@@ -273,40 +274,41 @@ class Agent(ABC, Generic[OutputT]):
         *,
         config: Optional[dict] = None,
     ) -> Any:
-        """执行一次 agent 调用。返回 ``format_output`` 的产物（默认透传 graph 输出）。
+        """Execute one agent call. Returns the ``format_output`` product (passes graph output through by default).
 
-        执行流程：
-        1. ``build_prompt(state)`` 构造 system prompt（middleware 可覆盖）
-        2. ``format_user_input(state, user_query)`` 构造 user 消息体
-        3. ``_compile()`` 拿到 CompiledGraph
-        4. **``graph.stream(stream_mode='messages')`` 逐 chunk 驱动**——每个
-           ``AIMessageChunk`` 的文本内容通过 ``RunnableConfig.configurable["stream_callback"]``
-           推送（业务通过 ``AgentBaseNode`` 自动注入或在 ``config`` 里显式设）
-        5. 流结束后用 ``graph.get_state(config).values`` 拿终态
-        6. ``format_output(state, output)`` 返回最终产物
+        Execution flow:
+        1. ``build_prompt(state)`` constructs the system prompt (middleware may override)
+        2. ``format_user_input(state, user_query)`` constructs the user message body
+        3. ``_compile()`` obtains the CompiledGraph
+        4. **``graph.stream(stream_mode='messages')`` drives it chunk by chunk** -- each
+           ``AIMessageChunk``'s text content is pushed via ``RunnableConfig.configurable["stream_callback"]``
+           (business code injects it automatically via ``AgentBaseNode`` or sets it explicitly in ``config``)
+        5. After the stream ends, ``graph.get_state(config).values`` gets the final state
+        6. ``format_output(state, output)`` returns the final product
 
-        返回值形态：
-        - 默认：``str``（messages 末尾 AI 回复）或 ``output_schema()`` 的实例
-        - ``format_output`` 被 override：子类决定
+        Return value shapes:
+        - default: ``str`` (trailing AI reply in messages) or an instance of ``output_schema()``
+        - ``format_output`` overridden: decided by the subclass
 
-        把"翻译为 Command/dict 等框架特定输出"的职责留给工作流层
-        （如 ``AgentBaseNode.build_command``），Agent 本身保持工作流无关。
+        The responsibility of "translating to Command/dict or other framework-specific output" is
+        left to the workflow layer (e.g. ``AgentBaseNode.build_command``); the Agent itself stays
+        workflow-agnostic.
         """
         graph = self._compile()
         system_prompt = self.build_prompt(state)
         user_content = self.format_user_input(state, user_query)
 
-        # 把 system_prompt 暂存到 RunnableConfig 的 context（ReactGraphBuilder
-        # 期望从 runtime.context.system_prompt 读，与 DynamicPromptMiddleware 协议一致）
+        # Stash system_prompt into the RunnableConfig context (ReactGraphBuilder
+        # expects to read it from runtime.context.system_prompt, matching the DynamicPromptMiddleware protocol)
         run_config: dict = dict(config or {})
         configurable = dict(run_config.get("configurable") or {})
-        # 兼容老的 thread_id 概念（LangGraph checkpointer 需要）
+        # Compatible with the legacy thread_id concept (required by the LangGraph checkpointer)
         configurable.setdefault("thread_id", f"{self.name}__{_DEFAULT_THREAD_ID}")
         run_config["configurable"] = configurable
 
         input_state = {
             "messages": [HumanMessage(content=user_content)],
-            # 把 system_prompt 也放进 state，给 middleware（如 DynamicPromptMiddleware）使用
+            # Put system_prompt into state too, for middleware (e.g. DynamicPromptMiddleware)
             "system_prompt": system_prompt,
         }
         if hasattr(state, "get"):
@@ -315,7 +317,7 @@ class Agent(ABC, Generic[OutputT]):
                 if v is not None:
                     input_state[k] = v
 
-        # 流式调度：每个 AIMessageChunk 推送给 stream_callback（业务可选）
+        # Streaming dispatch: push each AIMessageChunk to stream_callback (optional for business code)
         stream_callback = configurable.get("stream_callback")
         for chunk, _ in graph.stream(
             input_state, config=run_config, stream_mode="messages"
@@ -324,7 +326,7 @@ class Agent(ABC, Generic[OutputT]):
                 continue
             chunk : AIMessageChunk = chunk
             response_metadata : dict = chunk.response_metadata
-            # 跳过纯 tool_call 块（无文本内容）
+            # Skip pure tool_call chunks (no text content)
             if chunk.tool_call_chunks and not chunk.content:
                 continue
             token = _extract_text(chunk.content)
@@ -337,10 +339,10 @@ class Agent(ABC, Generic[OutputT]):
                     f"Agent.run: stream_callback raised: {e}",
                 )
 
-        # 流结束后取终态
+        # Get the final state after the stream ends
         result_state = graph.get_state(run_config).values
 
-        # 优先用 structured_response；否则用 messages 末尾的 AI 回复
+        # Prefer structured_response; otherwise use the trailing AI reply in messages
         output = result_state.get("structured_response")
         if output is None:
             output = _extract_last_reply(result_state.get("messages") or [])

@@ -1,12 +1,12 @@
 """
-结构化 metric 工具：统一 metric 埋点接口，便于 Prometheus / Grafana 接入。
+Structured metric utility: a unified metric instrumentation interface, for easy integration with Prometheus / Grafana.
 
-设计目标：
-1. **零侵入**：metric 失败永不影响业务流程（所有调用包在 try/except 里）
-2. **日志双通道**：同时写到结构化 logger（便于 grep）和 Prometheus（便于看板）
-3. **延迟加载**：prometheus_client 未安装时仅写日志，不报错（dev 环境无依赖）
+Design goals:
+1. **Zero intrusion**: metric failures never affect the business flow (all calls wrapped in try/except)
+2. **Dual log channel**: writes to both the structured logger (easy to grep) and Prometheus (easy dashboards)
+3. **Lazy loading**: when prometheus_client is not installed, only writes logs without erroring (no dependency in dev environments)
 
-用法：
+Usage:
     from goalflow.tool.metrics import emit_counter, emit_histogram
 
     emit_counter("requirement_collection.find_best_leaf_fallback",
@@ -25,7 +25,7 @@ from typing import Any
 
 _logger = logging.getLogger("metrics")
 
-# 延迟加载 prometheus_client；未安装也不报错
+# Lazily load prometheus_client; no error even if not installed
 try:
     from prometheus_client import Counter as _PromCounter, Histogram as _PromHistogram
     _PROM_AVAILABLE = True
@@ -34,7 +34,7 @@ except ImportError:
     _PromCounter = None  # type: ignore[assignment]
     _PromHistogram = None  # type: ignore[assignment]
 
-# Prometheus client 要求每个 metric 的 label 名一致；这里按 name 缓存实例
+# Prometheus client requires each metric to have consistent label names; cache instances by name here
 _counters: dict[str, Any] = {}
 _histograms: dict[str, Any] = {}
 
@@ -64,10 +64,10 @@ def _get_or_create_histogram(name: str, label_keys: list[str]) -> Any | None:
 
 
 def emit_counter(name: str, value: int = 1, **labels: Any) -> None:
-    """计数 metric。labels 可任意字段名。
+    """Counter metric. labels can use any field names.
 
-    始终写一条 INFO 日志（``[metric] name=... value=... labels=...``），
-    Prometheus 不可用时仅写日志不抛错。
+    Always writes an INFO log (``[metric] name=... value=... labels=...``);
+    when Prometheus is unavailable, only writes logs without raising.
     """
     label_keys = sorted(labels.keys())
     label_values = {k: str(labels[k]) for k in label_keys}
@@ -81,7 +81,7 @@ def emit_counter(name: str, value: int = 1, **labels: Any) -> None:
 
 
 def emit_histogram(name: str, value: float, **labels: Any) -> None:
-    """直方图 metric（用于延迟、计数分布等）。"""
+    """Histogram metric (used for latency, count distributions, etc.)."""
     label_keys = sorted(labels.keys())
     label_values = {k: str(labels[k]) for k in label_keys}
     try:

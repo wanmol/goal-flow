@@ -1,6 +1,6 @@
-"""n8n JSON → 可运行 goalflow workflow 转译 CLI。
+"""n8n JSON -> runnable goalflow workflow transpiler CLI.
 
-用法::
+Usage::
 
     python -m goalflow.tool.n8n_transformer.n8n_transformer_tool \\
         --json path/to/workflow.json \\
@@ -38,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> int:
-    # Windows 控制台默认 GBK,重配置为 UTF-8 以便打印 emoji / 中文警告
+    # Windows console defaults to GBK; reconfigure to UTF-8 so emoji / Chinese warnings print correctly
     for stream in (sys.stdout, sys.stderr):
         reconfig = getattr(stream, "reconfigure", None)
         if reconfig:

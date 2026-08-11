@@ -34,7 +34,7 @@ class WorkflowCodeGenerator:
         self.generated_code = ""
         self.file_name = file_name
         self.class_name = class_name
-        # out_path: 显式输出路径（文件或目录）。None → 默认写入 workflow/generated/<file_name>。
+        # out_path: explicit output path (file or directory). None -> writes to workflow/generated/<file_name> by default.
         self.out_path = out_path
         
     def generate(self):
@@ -54,11 +54,11 @@ class WorkflowCodeGenerator:
         return filename
 
     def _resolve_output_path(self) -> str:
-        """决定生成文件的落地路径。
+        """Determine the output path for the generated file.
 
-        - out_path 为 None：默认写入 workflow/generated/<file_name>
-        - out_path 是已存在的目录（或以分隔符结尾）：视为目录，文件名用 file_name
-        - out_path 否则视为完整文件路径
+        - out_path is None: writes to workflow/generated/<file_name> by default
+        - out_path is an existing directory (or ends with a separator): treated as a directory, using file_name
+        - out_path otherwise: treated as a full file path
         """
         if self.out_path is None:
             generated_dir = os.path.join(

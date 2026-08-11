@@ -1,24 +1,24 @@
-"""SkillAugmentationMiddleware：把 skill 详情拼进 system prompt + 路由 skill tool。
+"""SkillAugmentationMiddleware: splice skill details into the system prompt + route the skill tool.
 
-设计意图：替代 ``AgentRuntime`` 在 ``run()`` 状态机里调用 ``SkillOrchestrator``
-的 ad-hoc 集成。本中间件做两件事：
+Design intent: replaces the ad-hoc integration where ``AgentRuntime`` called ``SkillOrchestrator``
+in the ``run()`` state machine. This middleware does two things:
 
-1. ``@dynamic_prompt`` 维度：每轮匹配最相关的 skill 详情拼进 system prompt
-2. ``wrap_tool_call`` 维度：跟踪 skill tool 调用做 metric / 标签（可选）
+1. ``@dynamic_prompt`` dimension: each round, match the most relevant skill details and splice them into the system prompt
+2. ``wrap_tool_call`` dimension: track skill tool calls for metric / labeling (optional)
 
-业务用法::
+Business usage::
 
     from agent_kit import SkillOrchestrator, SkillAugmentationMiddleware
 
     orch = SkillOrchestrator.create_default("./skills")
     agent = Agent(
         middleware=[SkillAugmentationMiddleware(orch, match_top_k=3, match_threshold=0.3)],
-        tools=orch.materialize_tools(...),  # 把 executable skill 转 LangChain tool
+        tools=orch.materialize_tools(...),  # convert executable skills into LangChain tools
         ...
     )
 
-匹配出错时**静默回退原 prompt**（不让 skill 失败拖垮主流程）——与
-``AgentRuntime.run()`` 的现有 fallback 行为一致。
+On a match error, **silently falls back to the original prompt** (so a skill failure doesn't drag down the main flow) -- consistent
+with the existing fallback behavior of ``AgentRuntime.run()``.
 """
 from __future__ import annotations
 import logging
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 def _extract_query(request: ModelRequest) -> str:
-    """从 request 拿最近一条 user 消息内容做 skill 匹配 query。"""
+    """Take the content of the most recent user message from the request as the skill match query."""
     from langchain_core.messages import HumanMessage
 
     messages = request.messages or []
@@ -72,13 +72,13 @@ def _existing_system_prompt(request: ModelRequest) -> str:
 class SkillAugmentationMiddleware(
     AgentMiddleware[ContextAgentState, ContextT, ResponseT]
 ):
-    """在每轮 model 调用前，把匹配出的 skill 详情拼进 system prompt。
+    """Before each model call, splice the matched skill details into the system prompt.
 
-    构造参数：
-    - ``orchestrator``：``SkillOrchestrator`` 实例
-    - ``match_top_k``：每轮最多匹配的 skill 数（默认 3）
-    - ``match_threshold``：匹配置信度阈值（默认 0.3）
-    - ``query_extractor``：自定义 query 抽取（默认从 messages 末尾的 HumanMessage 拿）
+    Constructor parameters:
+    - ``orchestrator``: the ``SkillOrchestrator`` instance
+    - ``match_top_k``: max number of skills matched per round (default 3)
+    - ``match_threshold``: match confidence threshold (default 0.3)
+    - ``query_extractor``: custom query extraction (defaults to taking the HumanMessage at the end of messages)
     """
 
     def __init__(

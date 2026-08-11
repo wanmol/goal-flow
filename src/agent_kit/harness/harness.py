@@ -1,16 +1,16 @@
-"""Harness：治理基础设施的实例化容器。
+"""Harness: an instantiation container for governance infrastructure.
 
-设计意图：替代 ``HARNESS_*`` 五个进程级全局单例，让 Agent 通过 ``Agent(harness=...)``
-显式注入治理依赖。便于：
+Design intent: replace the five process-level ``HARNESS_*`` global singletons, letting an Agent
+explicitly inject governance dependencies via ``Agent(harness=...)``. This makes it easy to:
 
-- 单测隔离（构造一个全新 ``Harness()`` 不污染其它测试）
-- 多套配置并存（同一进程跑两套 LLM 路由）
-- 依赖关系显式化（看签名就知道 Agent 用了哪些治理能力）
+- Isolate unit tests (constructing a fresh ``Harness()`` won't pollute other tests)
+- Coexist multiple configurations (run two sets of LLM routing in the same process)
+- Make dependencies explicit (the signature tells you which governance capabilities the Agent uses)
 
-兼容旧 API：``default_harness()`` 返回的 ``Harness`` 实例的属性**就是**旧
-``HARNESS_*`` 单例对象本身（不复制，共享状态）。所以业务通过老 API
-``HARNESS_ROUTER.configure(...)`` 注册的，从 ``default_harness().router.get(...)``
-也能拿到——反之亦然。
+Legacy API compatibility: the attributes of the ``Harness`` instance returned by ``default_harness()``
+**are** the legacy ``HARNESS_*`` singleton objects themselves (not copied, shared state). So what
+business code registers via the legacy API ``HARNESS_ROUTER.configure(...)`` is also visible through
+``default_harness().router.get(...)`` -- and vice versa.
 """
 from __future__ import annotations
 
@@ -26,13 +26,13 @@ from agent_kit.harness.settings import HarnessSettings
 
 @dataclass
 class Harness:
-    """治理实例容器。
+    """Governance instance container.
 
-    构造时不传任何参数 → 5 个 component 都是独立新实例，与全局 ``HARNESS_*``
-    单例完全隔离（适合单测）。
+    No arguments at construction → all 5 components are independent new instances, fully isolated
+    from the global ``HARNESS_*`` singletons (suitable for unit tests).
 
-    构造时传入参数（如 ``Harness(router=HARNESS_ROUTER, ...)``）→ 共享传入实例
-    的状态。``default_harness()`` 走这条路。
+    Arguments passed at construction (e.g. ``Harness(router=HARNESS_ROUTER, ...)``) → shares the
+    state of the passed-in instances. ``default_harness()`` takes this path.
     """
 
     settings: HarnessSettings = field(default_factory=HarnessSettings)
@@ -46,12 +46,12 @@ _DEFAULT_HARNESS: Optional[Harness] = None
 
 
 def default_harness() -> Harness:
-    """返回进程级默认 ``Harness``。
+    """Return the process-level default ``Harness``.
 
-    该实例的 5 个属性**就是**老 ``HARNESS_*`` 单例对象本身（共享同一份状态）。
-    所以新老两条 API 路径对同一份治理状态读写。
+    This instance's 5 attributes **are** the legacy ``HARNESS_*`` singleton objects themselves
+    (sharing the same state). So the new and old API paths read and write the same governance state.
 
-    业务推荐用法：
+    Recommended business usage:
 
         from agent_kit import default_harness, Agent
 
@@ -60,9 +60,9 @@ def default_harness() -> Harness:
             def __init__(self):
                 super().__init__(harness=default_harness(), ...)
 
-    单测隔离用法：
+    Unit-test isolation usage:
 
-        harness = Harness()  # 全新 ModelRouter / PromptRegistry / ...
+        harness = Harness()  # fresh ModelRouter / PromptRegistry / ...
     """
     global _DEFAULT_HARNESS
     if _DEFAULT_HARNESS is None:
@@ -83,7 +83,7 @@ def default_harness() -> Harness:
 
 
 def _reset_default_harness_for_tests() -> None:
-    """单测专用：重置 ``_DEFAULT_HARNESS`` 以便下次调用 ``default_harness()``
-    重新绑定可能被替换过的 ``HARNESS_*`` 单例。"""
+    """Unit-test only: reset ``_DEFAULT_HARNESS`` so the next call to ``default_harness()``
+    re-binds to the possibly-replaced ``HARNESS_*`` singletons."""
     global _DEFAULT_HARNESS
     _DEFAULT_HARNESS = None

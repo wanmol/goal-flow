@@ -5,13 +5,13 @@ logger = get_logger(__name__)
 
 class BaseCache:
     """
-    基础缓存类
+    Base cache class
     """
 
     @staticmethod
     def has_key(*, key: str) -> bool:
         """
-        判断缓存键是否存在
+        Determine whether the cache key exists
         """
         try:
             return redis_client.exists(key)

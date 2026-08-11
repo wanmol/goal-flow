@@ -1,4 +1,4 @@
-"""Agent LangChain middleware（上下文、敏感词校验、入口短路、跳过模型、异常兜底、动态 prompt 等）。"""
+"""Agent LangChain middleware (context, sensitive-word checks, entry short-circuit, model skip, error fallback, dynamic prompt, etc.)."""
 from agent_kit.harness.middleware.agent_state import ContextAgentState
 from agent_kit.harness.middleware.context_manager import (
     CallableContextManager,
@@ -61,7 +61,7 @@ __all__ = [
     "ContextMiddleware",
     "merge_context_messages",
     "SensitiveCheckMiddleware",
-    # P1: 钩子下沉为 middleware
+    # P1: hooks pushed down into middleware
     "EntryGuardMiddleware",
     "GuardPredicate",
     "GuardResult",

@@ -12,14 +12,14 @@ from goalflow.config import (
 logger = get_logger(__name__)
 
 class ChatCompletionRequestCache:
-    """缓 completion请求缓存"""
+    """Chat completion request cache"""
     
     @staticmethod
     def cache_chat_completion_request(
         *,
         state: BaseState, 
         request: ChatCompletionRequest):
-        """缓存chat completion请求"""
+        """Cache the chat completion request"""
         redis_key = CHAT_COMPLETION_REQUEST_REDIS_KEY_FMT.format(state.get("sys_workflow_run_id"))
         # json_str = json.dumps(request.model_dump(), ensure_ascii=False)
         json_str = request.model_dump_json()
@@ -32,7 +32,7 @@ class ChatCompletionRequestCache:
     def get_chat_completion_request(
         *,
         state: BaseState) -> ChatCompletionRequest:
-        """获取chat completion请求"""
+        """Get the chat completion request"""
         redis_key = CHAT_COMPLETION_REQUEST_REDIS_KEY_FMT.format(state.get("sys_workflow_run_id"))
         json_str = RedisClusterManager.get(redis_key)
         if json_str is None:
@@ -44,7 +44,7 @@ class ChatCompletionRequestCache:
     def delete_request_cache(
         *,
         state: BaseState):
-        """删除chat completion请求"""
+        """Delete the chat completion request"""
         sys_openai_param :bool = state.get("sys_openai_param", False)
         if not sys_openai_param:
             return
@@ -58,7 +58,7 @@ class ChatCompletionRequestCache:
     def perpetuate_request_cache(
         *,
         state: BaseState):
-        """持久化chat completion请求"""
+        """Persist the chat completion request"""
         redis_key = CHAT_COMPLETION_REQUEST_REDIS_KEY_FMT.format(state.get("sys_workflow_run_id"))
         success: bool = RedisClusterManager.expire(redis_key, 60 * 5)
         if not success:

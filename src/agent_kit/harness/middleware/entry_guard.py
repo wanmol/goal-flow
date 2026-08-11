@@ -1,33 +1,33 @@
-"""EntryGuardMiddleware：入口短路中间件（替代 ``AgentRuntime.before_call`` 钩子）。
+"""EntryGuardMiddleware: entry short-circuit middleware (replaces the ``AgentRuntime.before_call`` hook).
 
-设计意图：把"入口预检失败 → 直接返回固定回复"这个常见模式从 Runtime 钩子下沉为
-独立的 LangChain ``AgentMiddleware``，使其可以：
+Design intent: push the common pattern "entry precheck fails → directly return a fixed reply" down
+from a Runtime hook into a standalone LangChain ``AgentMiddleware``, so it can:
 
-- 跨 Agent 复用（一份 predicate 用在多个 Agent 上）
-- 独立 import、独立测试、独立组合（与其它 middleware 顺序可控）
-- 与 LangChain 中间件生态（``ContextMiddleware`` / ``SensitiveCheckMiddleware`` 等）风格统一
+- Be reused across Agents (one predicate used on multiple Agents)
+- Be imported, tested, and composed independently (with controllable ordering relative to other middleware)
+- Stay stylistically consistent with the LangChain middleware ecosystem (``ContextMiddleware`` / ``SensitiveCheckMiddleware`` etc.)
 
-适用场景：
-- 状态预检失败 → 直接回固定提示
-- 用户身份未认证 → 拒绝
-- 业务前置条件未满足 → 提示用户补充信息
+Applicable scenarios:
+- State precheck fails → directly return a fixed prompt
+- User identity not authenticated → reject
+- Business precondition not met → prompt the user to supply more information
 
-**不适用** 的场景（继续用 ``before_call`` 钩子）：
-- 需要 ``Command(goto="some_node")`` 跳转到具体节点（本中间件只能 ``jump_to=["end"]``）
-- 需要在短路时 ``update`` 多个 state 字段（中间件只更新 messages）
+**Not applicable** scenarios (keep using the ``before_call`` hook):
+- Need ``Command(goto="some_node")`` to jump to a specific node (this middleware can only ``jump_to=["end"]``)
+- Need to ``update`` multiple state fields on short-circuit (the middleware only updates messages)
 
-与 ``before_call`` 钩子的对应关系：
+Correspondence with the ``before_call`` hook:
 
-    # 老写法（钩子）
+    # Old style (hook)
     def before_call(self, state):
         if not state.get("category"):
-            return Command(update={"reply": "请先选择类目"})
+            return Command(update={"reply": "Please select a category first"})
         return None
 
-    # 新写法（中间件）
+    # New style (middleware)
     EntryGuardMiddleware(
         lambda state, runtime:
-            ("end", "请先选择类目") if not state.get("category") else None
+            ("end", "Please select a category first") if not state.get("category") else None
     )
 """
 from __future__ import annotations
@@ -46,19 +46,19 @@ if TYPE_CHECKING:
     from langgraph.runtime import Runtime
 
 
-# predicate 返回 (jump_to, reply_text) 触发短路；返回 None 继续正常流程
+# predicate returns (jump_to, reply_text) to trigger short-circuit; returns None to continue the normal flow
 GuardResult = Optional[Tuple[str, str]]
 GuardPredicate = Callable[[ContextAgentState, "Runtime[Any]"], GuardResult]
 
 
 class EntryGuardMiddleware(AgentMiddleware[ContextAgentState, ContextT, ResponseT]):
-    """入口短路中间件。
+    """Entry short-circuit middleware.
 
-    构造时传入 ``predicate(state, runtime) -> (jump_to, reply) | None``：
+    Pass ``predicate(state, runtime) -> (jump_to, reply) | None`` at construction:
 
-    - 返回 ``None``：放行，继续后续 middleware / agent loop
-    - 返回 ``("end", "兜底文案")``：短路到 end，把 ``AIMessage(content="兜底文案")``
-      作为最终回复写入 messages
+    - returns ``None``: allow through, continue subsequent middleware / agent loop
+    - returns ``("end", "fallback text")``: short-circuit to end, writing ``AIMessage(content="fallback text")``
+      into messages as the final reply
     """
 
     def __init__(self, predicate: GuardPredicate):

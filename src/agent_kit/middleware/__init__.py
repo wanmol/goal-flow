@@ -1,29 +1,29 @@
-"""``agent_kit.middleware``：8 个 LangChain ``AgentMiddleware`` 的统一公开入口。
+"""``agent_kit.middleware``: the unified public entry point for 8 LangChain ``AgentMiddleware``.
 
-设计意图：让业务一个 import 就能拿到全套中间件，不需要分别知道老 ``harness.middleware``
-与新顶层 ``middleware`` 的内部分布。
+Design intent: let the business get the full set of middleware with a single import, without needing to
+separately know the internal distribution between the old ``harness.middleware`` and the new top-level ``middleware``.
 
-8 个中间件分两类：
+The 8 middleware fall into two categories:
 
-**约束类（控制 agent loop 走向）**
+**Constraint category (control the direction of the agent loop)**
 
-- ``EntryGuardMiddleware``：入口短路（替老 ``before_call``）
-- ``ModelSkipMiddleware``：跳过 LLM 调用（替老 ``should_run_agent``）
-- ``ModelFailoverMiddleware``：主备模型切换（主模型不可用时切到备选）
-- ``FallbackReplyMiddleware``：异常兜底（替老 ``on_failure``）
-- ``SensitiveCheckMiddleware``：敏感词校验
+- ``EntryGuardMiddleware``: entry short-circuit (replaces the old ``before_call``)
+- ``ModelSkipMiddleware``: skip the LLM call (replaces the old ``should_run_agent``)
+- ``ModelFailoverMiddleware``: primary/backup model switching (switch to the backup when the primary is unavailable)
+- ``FallbackReplyMiddleware``: exception fallback (replaces the old ``on_failure``)
+- ``SensitiveCheckMiddleware``: sensitive-word validation
 
-**增强类（修改/扩展 model 调用）**
+**Enhancement category (modify/extend the model call)**
 
-- ``ConversationHistoryMiddleware``：注入对话历史
-- ``SkillAugmentationMiddleware``：拼 skill 详情进 prompt
-- ``MetricsMiddleware``：自动埋点 model 调用延迟/失败
-- ``StreamingBridgeMiddleware``：把 model 输出推到 stream callback
-- ``LangfuseTracingMiddleware``：包围 agent 生命周期开/关 Langfuse span
+- ``ConversationHistoryMiddleware``: inject conversation history
+- ``SkillAugmentationMiddleware``: splice skill details into the prompt
+- ``MetricsMiddleware``: automatically instrument model call latency/failure
+- ``StreamingBridgeMiddleware``: push model output to the stream callback
+- ``LangfuseTracingMiddleware``: wrap the agent lifecycle to open/close a Langfuse span
 
-以及一个工厂函数：
+Plus one factory function:
 
-- ``make_dynamic_prompt_middleware``：从指定 source 构造动态 prompt 中间件
+- ``make_dynamic_prompt_middleware``: build a dynamic prompt middleware from a given source
 """
 from agent_kit.middleware.conversation_history import (
     ConversationHistoryMiddleware,
@@ -60,7 +60,7 @@ from agent_kit.middleware.skill_augmentation import SkillAugmentationMiddleware
 from agent_kit.middleware.streaming_bridge import StreamingBridgeMiddleware
 
 __all__ = [
-    # 约束类
+    # Constraint category
     "EntryGuardMiddleware",
     "GuardPredicate",
     "GuardResult",
@@ -73,14 +73,14 @@ __all__ = [
     "FallbackReplyMiddleware",
     "OnErrorFn",
     "SensitiveCheckMiddleware",
-    # 增强类
+    # Enhancement category
     "ConversationHistoryMiddleware",
     "merge_context_messages",
     "SkillAugmentationMiddleware",
     "MetricsMiddleware",
     "StreamingBridgeMiddleware",
     "LangfuseTracingMiddleware",
-    # 工厂
+    # Factory
     "make_dynamic_prompt_middleware",
     "DEFAULT_FALLBACK_PROMPT",
     "PromptSource",

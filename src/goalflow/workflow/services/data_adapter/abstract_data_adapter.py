@@ -16,10 +16,10 @@ class AbstractDataAdapter(ABC):
 
     @abstractmethod
     def generate(self, generator: Generator[str, None, None]) -> Generator[str, None, None]:
-        """流式消息转换。"""
+        """Streaming message conversion."""
         ...
 
     @abstractmethod
     def execute(self, data: ChatCompletionBlockingResponse) -> dict:
-        """非流式消息转换。"""
+        """Non-streaming message conversion."""
         ...

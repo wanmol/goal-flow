@@ -6,8 +6,8 @@ Usage:
 
     orchestrator = SkillOrchestrator.create_default()
     system_prompt = orchestrator.build_prompt(
-        query="上海今天天气怎么样",
-        base_prompt="你是一个智能助手...",
+        query="What's the weather in Shanghai today",
+        base_prompt="You are an intelligent assistant...",
     )
 """
 

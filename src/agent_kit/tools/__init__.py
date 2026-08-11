@@ -1,4 +1,4 @@
-"""Tool 构造辅助：state 注入装饰器、工具语义化别名、沙盒代码执行 tool。"""
+"""Tool construction helpers: state injection decorator, semantic tool aliases, sandbox code execution tool."""
 from agent_kit.tools.injection import InjectedAgentOutput, InjectedState
 from agent_kit.tools.sandbox import (
     BaseSandboxExecutor,

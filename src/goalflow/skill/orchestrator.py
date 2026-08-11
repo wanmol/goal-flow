@@ -22,17 +22,17 @@ class SkillOrchestrator:
     
     from goalflow.skill import SkillOrchestrator
 
-    # 快速创建
+    # Quick creation
     orchestrator = SkillOrchestrator.create_default()
 
-    # 一步到位：query → 最终 system prompt
+    # One step: query → final system prompt
     prompt = orchestrator.build_prompt(
-        query="上海天气怎么样",
-        base_prompt="你是一个智能助手。",
+        query="What's the weather in Shanghai",
+        base_prompt="You are an intelligent assistant.",
     )
 
-    # 如果需要中间结果（匹配详情 + 技能内容）
-    matches, contents = orchestrator.match_and_load("上海天气")
+    # If intermediate results are needed (match details + skill content)
+    matches, contents = orchestrator.match_and_load("Shanghai weather")
 
     """
 
@@ -52,7 +52,7 @@ class SkillOrchestrator:
     def create_default(cls, skills_dir: Optional[str] = None) -> "SkillOrchestrator":
         """Factory: create an orchestrator with default components."""
         
-        #  SkillRegistry 初始化会设置 skills_dir 为默认值 "skills"，所以这里不需要检查
+        #  SkillRegistry initialization sets skills_dir to the default value "skills", so there is no need to check here
         # from pathlib import Path
         # if skills_dir is None:
         #     skills_dir = "skills"

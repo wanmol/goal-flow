@@ -27,7 +27,7 @@ class LoopStartNode(BaseNode):
     
 class LoopEndNode(BaseNode):
     """
-    运行到此节点子流程需要强制退出
+    The sub-workflow must be forcibly exited when it reaches this node
     """
     def __init__(
         self,
@@ -37,7 +37,7 @@ class LoopEndNode(BaseNode):
     
     def call(self, state: GenericState) -> NodeOutput:
         """
-        循环结束节点
+        Loop end node
         """
         if self.loop_id is None:
             raise ValueError("loop id is None")
@@ -101,7 +101,7 @@ class LoopNode(BaseNode):
         if self.subgraph is None:
             raise ValueError("iteration node subgraph is None")
         
-        # 强制不超过10
+        # Force it not to exceed 10
         if self.loop_count > 10:
             raise ValueError("loop count must be less than 10")
         
@@ -125,18 +125,18 @@ class LoopNode(BaseNode):
             key = "{}_{}".format(selector[0], selector[1])
             loop_vars[key] = value
             
-        # 构造子流程的输入
+        # Build the input for the sub-workflow
         subgraph_inputs = state.copy()
         subgraph_inputs[STATE_VARIABLE_TYPE_OUTPUT].update(loop_vars)
 
         self.condition_processor = ConditionProcessor()
                 
         for i in range(self.loop_count):
-            # 每次循环都需要重置step,防止多扇入节点多次执行
+            # Each loop needs to reset step to prevent multi-fan-in nodes from executing multiple times
             subgraph_inputs["step"] = 0
-            # 执行子图
+            # Execute the subgraph
             subgraph_inputs = self.subgraph.invoke(subgraph_inputs)
-            # 检查是否满足跳出条件
+            # Check whether the break condition is met
             if self._check_break_conditions(subgraph_inputs):
                 break
             
@@ -144,7 +144,7 @@ class LoopNode(BaseNode):
         output_vars = subgraph_inputs[STATE_VARIABLE_TYPE_OUTPUT]   
         update_output_vars = {}
     
-        # 只更新循环节点本身设置的变量
+        # Only update the variables set by the loop node itself
         for key, value in output_vars.items():
             if key.startswith(self.id):
                 update_output_vars[key] = value
@@ -160,7 +160,7 @@ class LoopNode(BaseNode):
         
         update_data.update({STATE_VARIABLE_TYPE_OUTPUT:update_output_vars})
 
-        # 循环内部设置的会话变量需要返回，更新到外部的state中
+        # Conversation variables set inside the loop need to be returned and updated into the outer state
         return Command(
             update=update_data,
             goto=self.next_node_ids
@@ -169,14 +169,14 @@ class LoopNode(BaseNode):
     def _check_break_conditions(self, state: GenericState) -> bool:
         """
         Check if any break condition is met.
-        param: state 子流程的输出状态
+        param: state the output state of the sub-workflow
         """
         value = VariableResolver.resolve_value_selector([self.id, LOOP_END_CALL_NAME],state)
         
         if value :
             return True
         
-        # 如果没有循环终止条件，默认不退出循环
+        # If there is no loop termination condition, do not exit the loop by default
         if self.break_conditions is None or len(self.break_conditions) == 0:
             return False
         

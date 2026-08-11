@@ -1,4 +1,4 @@
-"""``make_dynamic_prompt_middleware`` 顶层公开入口。"""
+"""``make_dynamic_prompt_middleware`` top-level public entry point."""
 from agent_kit.harness.middleware.dynamic_prompt import (
     DEFAULT_FALLBACK_PROMPT,
     PromptSource,

@@ -210,7 +210,7 @@ class CodeNode(BaseNode):
                 logger.error(f"{self.formatted_name} code node error",detail=f"main function must return a dict, got {type(result)}")
                 raise ValueError(f"main function must return a dict, got {type(result)}")
             
-            #print(f"[CodeNode] 代码执行结果: {result}")
+            #print(f"[CodeNode] code execution result: {result}")
             return result
             
         except Exception as e:
@@ -237,5 +237,5 @@ class CodeNode(BaseNode):
             else:
                 print(f"⚠️ Warning: expected output variable '{var_name}' not found in execution result")
         
-        #print(f"[CodeNode] 过滤后输出: {filtered}")
+        #print(f"[CodeNode] filtered output: {filtered}")
         return filtered

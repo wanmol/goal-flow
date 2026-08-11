@@ -1,10 +1,10 @@
 """
 Research Workflow Prompts
-研究工作流的所有 Prompt 模板
+All prompt templates for the research workflow
 """
 
 # ============================================================
-# 0. 协调器 (Coordinator) Prompts
+# 0. Coordinator Prompts
 # ============================================================
 
 COORDINATOR_SYSTEM_PROMPT = """你是研究协调器（Research Coordinator），负责协调整个研究流程的核心指挥官。
@@ -85,7 +85,7 @@ COORDINATOR_SYSTEM_PROMPT = """你是研究协调器（Research Coordinator）�
 """
 
 # ============================================================
-# 1. 研究意图识别 Prompts
+# 1. Research Intent Recognition Prompts
 # ============================================================
 
 INTENT_RECOGNITION_PROMPT = """你是一个专业的研究意图识别专家。请分析用户的研究问题，判断其属于哪种研究类型。
@@ -109,10 +109,10 @@ INTENT_RECOGNITION_PROMPT = """你是一个专业的研究意图识别专家。�
 
 
 # ============================================================
-# 2. 研究框架生成 Prompts
+# 2. Research Framework Generation Prompts
 # ============================================================
 
-# 各类型的专门指导
+# Specialized guidance for each type
 TYPE_SPECIFIC_GUIDANCE = {
     "industry_analysis": """
 行业分析的框架应包括：
@@ -272,7 +272,7 @@ FRAMEWORK_GENERATION_PROMPT_TEMPLATE = """作为研究框架设计专家。请�
 
 
 # ============================================================
-# 3. 研究规划 Prompts
+# 3. Research Planning Prompts
 # ============================================================
 
 RESEARCH_PLANNING_PROMPT_TEMPLATE = """你是一个专业的研究规划专家。请根据用户的研究问题，生成一个详细的、可执行的研究计划。
@@ -326,7 +326,8 @@ RESEARCH_PLANNING_PROMPT_TEMPLATE = """你是一个专业的研究规划专家�
 
 
 # ============================================================
-# 4. 研究报告生成 Prompts
+# 4. Research Report Generation Prompts
 # ============================================================
-# 注意：报告生成现在使用 ReporterAgent.get_system_prompt() 中的动态 prompt
-# 该 prompt 支持自定义框架结构和 HITL 审核流程
+# Note: report generation now uses the dynamic prompt in ReporterAgent.get_system_prompt()
+# This prompt supports a customizable framework structure and the HITL review process
+

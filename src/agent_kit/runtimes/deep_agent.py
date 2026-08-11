@@ -1,12 +1,12 @@
 """
-DeepAgentRuntime：基于 deepagents.create_deep_agent 的 AgentRuntime 实现。
+DeepAgentRuntime: an AgentRuntime implementation based on deepagents.create_deep_agent.
 
-继承 AgentRuntime 后只需实现：
-- _build_graph()：调 create_deep_agent + 装配 4 个进阶钩子（subagents/memory/interrupt_on/response_format）
-- _execute_graph()：跑 graph.stream + 取 raw_messages / todos / reply
+After inheriting AgentRuntime, you only need to implement:
+- _build_graph(): call create_deep_agent + assemble the 4 advanced hooks (subagents/memory/interrupt_on/response_format)
+- _execute_graph(): run graph.stream + extract raw_messages / todos / reply
 
-deepagents 独有的 4 个进阶钩子（subagents / memory / interrupt_on / response_format）
-作为 DeepAgentRuntime 的扩展接口暴露，业务子类按需重写。
+The 4 advanced hooks unique to deepagents (subagents / memory / interrupt_on / response_format)
+are exposed as DeepAgentRuntime's extension interface, overridden by business subclasses as needed.
 """
 from __future__ import annotations
 
@@ -22,47 +22,47 @@ logger = logging.getLogger(__name__)
 
 
 class DeepAgentRuntime(AgentRuntime[ResultT]):
-    """deepagents 形态的 Runtime。
+    """The Runtime for the deepagents form.
 
-    在 AgentRuntime 12 个共享钩子的基础上，额外暴露 4 个 deepagents 独有的进阶钩子：
-    - build_subagents()：并发 Sub-agent
-    - memory_keys()：启动时加载到 prompt 的 AGENTS.md 路径
-    - interrupt_on_tools()：工具调用前 HITL 中断
-    - response_format()：结构化响应格式
+    On top of AgentRuntime's 12 shared hooks, additionally exposes 4 advanced hooks unique to deepagents:
+    - build_subagents(): concurrent Sub-agents
+    - memory_keys(): AGENTS.md paths loaded into the prompt at startup
+    - interrupt_on_tools(): HITL interrupt before a tool call
+    - response_format(): structured response format
 
-    默认全部返回空，业务子类按需重写。
+    All return empty by default, overridden by business subclasses as needed.
     """
 
-    # ───── 4 个 deepagents 独有的进阶钩子 ──────────────
+    # ───── 4 advanced hooks unique to deepagents ──────────────
 
     def build_subagents(self) -> list:
-        """返回 deepagents subagents 列表（SubAgent / CompiledSubAgent / AsyncSubAgent）。"""
+        """Return the deepagents subagents list (SubAgent / CompiledSubAgent / AsyncSubAgent)."""
         return []
 
     def memory_keys(self) -> list[str]:
-        """返回需要在启动时加载到 system prompt 的 AGENTS.md 路径列表。"""
+        """Return the list of AGENTS.md paths to load into the system prompt at startup."""
         return []
 
     def interrupt_on_tools(self) -> dict:
-        """返回需要 HITL 中断的工具名映射（dict[tool_name, InterruptOnConfig | bool]）。"""
+        """Return the mapping of tool names requiring HITL interrupt (dict[tool_name, InterruptOnConfig | bool])."""
         return {}
 
     def response_format(self):
-        """返回结构化响应格式（Pydantic class / TypedDict / dict schema），默认 None。"""
+        """Return the structured response format (Pydantic class / TypedDict / dict schema), default None."""
         return None
 
-    # ───── _build_graph：委派 DeepGraphBuilder（P4，ADR-003） ─────
+    # ───── _build_graph: delegates to DeepGraphBuilder (P4, ADR-003) ─────
 
     def _build_graph(self, *, state=None, system_prompt: str = "", user_content: str = ""):
-        """委派 ``DeepGraphBuilder`` 完成图装配。
+        """Delegate graph assembly to ``DeepGraphBuilder``.
 
-        P4（ADR-003）：本方法不再直接调 ``deepagents.create_deep_agent``，改为
-        通过 ``DeepGraphBuilder`` 策略对象。``Runtime``-specific 的 4 个钩子
-        （``build_subagents`` / ``memory_keys`` / ``interrupt_on_tools`` /
-        ``response_format``）在构造 Builder 时注入。
+        P4 (ADR-003): this method no longer directly calls ``deepagents.create_deep_agent``, instead
+        going through the ``DeepGraphBuilder`` strategy object. The ``Runtime``-specific 4 hooks
+        (``build_subagents`` / ``memory_keys`` / ``interrupt_on_tools`` /
+        ``response_format``) are injected when constructing the Builder.
 
-        新 ``Agent`` 类的 graph 装配走同一份 ``DeepGraphBuilder``——这消除了
-        AgentRuntime / Agent 两套调度对底层 graph API 的双重维护成本。
+        The new ``Agent`` class's graph assembly goes through the same ``DeepGraphBuilder`` -- this eliminates
+        the double maintenance cost of two scheduling paths (AgentRuntime / Agent) over the underlying graph API.
         """
         from agent_kit.graphs.deep import DeepGraphBuilder
 
@@ -95,7 +95,7 @@ class DeepAgentRuntime(AgentRuntime[ResultT]):
                    )
         return graph
 
-    # ───── _execute_graph 实现：流式 + 取结果 ─────────
+    # ───── _execute_graph implementation: streaming + extract result ─────────
 
     def _execute_graph(
         self,

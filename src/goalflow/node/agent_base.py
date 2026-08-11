@@ -1,26 +1,26 @@
-"""``node/agent_base``：workflow 节点新一代 base 类。
+"""``node/agent_base``: the next-generation base class for workflow nodes.
 
-基于 ADR-003 的 ``agent_kit.Agent`` + ``GraphBuilder`` 策略，替代老的：
+Based on the ADR-003 ``agent_kit.Agent`` + ``GraphBuilder`` strategy, replacing the old:
 
 - ``node/deep_agent_base.py::DeepAgentBaseNode``
 - ``node/create_agent_base.py::CreateAgentBaseNode``
 - ``node/state_graph_base.py::StateGraphBaseNode``
 
-老 3 个 base 仍可用（标记为 ``DeprecationWarning``），业务节点零改动；新节点推荐继承本类。
+The old 3 bases still work (marked with ``DeprecationWarning``), business nodes need no changes; new nodes should inherit this class.
 
-设计要点（ADR-004）：
+Design points (ADR-004):
 
-- **单一基类，graph 形态参数化**：通过 ``build_graph_builder_for_agent()`` 切换
-  ``ReactGraphBuilder``（默认） / ``DeepGraphBuilder`` / ``CustomGraphBuilder``
-- **钩子从 12 → 4**：业务子类只实现 ``output_schema`` / ``build_prompt`` /
-  ``serialize_output`` / [可选] ``format_user_input``；其它一切走 LangChain
+- **Single base class, graph shape parameterized**: switch between
+  ``ReactGraphBuilder`` (default) / ``DeepGraphBuilder`` / ``CustomGraphBuilder`` via ``build_graph_builder_for_agent()``
+- **Hooks from 12 → 4**: business subclasses only implement ``output_schema`` / ``build_prompt`` /
+  ``serialize_output`` / [optional] ``format_user_input``; everything else goes through LangChain
   ``AgentMiddleware``
-- **workflow 桥接**：``BaseNode.call(state) → Agent.run(state, sys_query)``；
-  ``stream_callback`` 通过 ``RunnableConfig.configurable["stream_callback"]``
-  注入（避免 ContextVar 隐式状态）
-- **Harness 共享**：默认 ``default_harness()``，与老 API 共用 ``HARNESS_*`` 单例
+- **workflow bridge**: ``BaseNode.call(state) → Agent.run(state, sys_query)``;
+  ``stream_callback`` is injected via ``RunnableConfig.configurable["stream_callback"]``
+  (avoiding implicit ContextVar state)
+- **Harness sharing**: defaults to ``default_harness()``, sharing the ``HARNESS_*`` singletons with the old API
 
-最小用法::
+Minimal usage::
 
     from goalflow.node.agent_base import AgentBaseNode
     from pydantic import BaseModel
@@ -31,16 +31,16 @@
         label: str = ""
 
     class CategoryClassifyNode(AgentBaseNode[MyOutput]):
-        name = "category_classify"  # 同时是 harness.router.get 的 task_type
+        name = "category_classify"  # also the task_type for harness.router.get
 
         def output_schema(self): return MyOutput
-        def build_prompt(self, state): return "你是企业服务类目分类器。"
+        def build_prompt(self, state): return "You are an enterprise service category classifier."
         def serialize_output(self, state, output):
             if isinstance(output, MyOutput):
                 return Command(update={"reply": output.reply, "label": output.label})
             return Command(update={"reply": str(output)})
 
-切换底层 graph 形态::
+Switching the underlying graph shape::
 
     from agent_kit import DeepGraphBuilder
 
@@ -76,99 +76,99 @@ OutputT = TypeVar("OutputT", bound=BaseModel)
 
 
 class AgentBaseNode(BaseNode, Agent[OutputT], Generic[OutputT]):
-    """workflow 节点 + ``agent_kit.Agent`` 组合（ADR-004，替老 3 个 ``*BaseNode``）。
+    """workflow node + ``agent_kit.Agent`` combination (ADR-004, replaces the old 3 ``*BaseNode``).
 
-    业务子类必须实现：
+    Business subclasses must implement:
 
-    - ``output_schema() -> type[BaseModel]``（``Agent`` 抽象）
-    - ``build_prompt(state) -> str``（``Agent`` 抽象）
-    - ``build_command(state, output) -> Command``（**本类抽象**：把 Agent 产物翻译为
-      LangGraph ``Command``，决定 workflow 路由 / state 更新）
+    - ``output_schema() -> type[BaseModel]`` (``Agent`` abstract)
+    - ``build_prompt(state) -> str`` (``Agent`` abstract)
+    - ``build_command(state, output) -> Command`` (**abstract in this class**: translates the Agent
+      product into a LangGraph ``Command``, deciding workflow routing / state updates)
 
-    可选 override（默认实现合理）：
+    Optional overrides (defaults are reasonable):
 
-    - ``format_user_input(state, query) -> str``（``Agent`` 可选）：默认透传 query
-    - ``format_output(state, output) -> Any``（``Agent`` 可选）：默认透传 graph 输出；
-      想做 typed parsing / post-process 的子类 override
+    - ``format_user_input(state, query) -> str`` (``Agent`` optional): passes the query through by default
+    - ``format_output(state, output) -> Any`` (``Agent`` optional): passes the graph output through by default;
+      subclasses that want typed parsing / post-processing override this
 
-    通过 ``build_graph_builder_for_agent()`` 切换底层 graph 形态：
+    Switch the underlying graph shape via ``build_graph_builder_for_agent()``:
 
-    - 默认 ``ReactGraphBuilder``（替老 ``CreateAgentBaseNode``）
-    - ``DeepGraphBuilder``（替老 ``DeepAgentBaseNode``）
-    - ``CustomGraphBuilder``（替老 ``StateGraphBaseNode``）
+    - default ``ReactGraphBuilder`` (replaces the old ``CreateAgentBaseNode``)
+    - ``DeepGraphBuilder`` (replaces the old ``DeepAgentBaseNode``)
+    - ``CustomGraphBuilder`` (replaces the old ``StateGraphBaseNode``)
 
-    可选 override 的 5 个工厂钩子（按类层级）：
+    The 5 optional factory hooks (by class hierarchy):
 
     - ``build_tools_for_agent() -> list``
     - ``build_middleware_for_agent() -> list``
     - ``build_graph_builder_for_agent() -> Optional[GraphBuilder]``
     - ``build_harness_for_agent() -> Optional[Harness]``
-    - ``cache_graph: bool``（类属性，默认 True）
+    - ``cache_graph: bool`` (class attribute, defaults to True)
 
-    **职责分层**：
+    **Separation of responsibilities**:
 
-    - ``Agent.format_output``：工作流无关，做 typed parsing / 字段抽取
-    - ``AgentBaseNode.build_command``：workflow 路由 / state 更新 / goto 决策
+    - ``Agent.format_output``: workflow-agnostic, does typed parsing / field extraction
+    - ``AgentBaseNode.build_command``: workflow routing / state updates / goto decisions
 
-    ``call()`` 内部链路：``Agent.run`` → ``format_output`` → ``build_command`` → ``Command``。
+    ``call()`` internal chain: ``Agent.run`` → ``format_output`` → ``build_command`` → ``Command``.
 
-    并发约定：实例不可并发复用；workflow 引擎保证同一节点串行。
-    turn-internal 状态通过 LangGraph state 而非实例属性传递。
+    Concurrency convention: instances cannot be reused concurrently; the workflow engine guarantees the same node runs serially.
+    turn-internal state is passed via LangGraph state rather than instance attributes.
     """
 
     name: str = "agent_node"
-    """Agent 标识。同时充当 ``harness.router.get(name)`` 的 task_type、
-    ``MetricsMiddleware`` 的前缀、langfuse span 名等。"""
+    """Agent identifier. Also serves as the task_type for ``harness.router.get(name)``,
+    the prefix for ``MetricsMiddleware``, the langfuse span name, etc."""
 
     cache_graph: bool = True
-    """是否缓存编译产物。议价 / Tit-for-Tat 等需要 per-turn 拓扑的场景设 False。"""
+    """Whether to cache the compiled product. Set False for scenarios needing per-turn topology, such as negotiation / Tit-for-Tat."""
 
-    # ── 并发安全：``_reply_streamed`` 走 ContextVar ────────────────────
+    # ── Concurrency safety: ``_reply_streamed`` uses a ContextVar ────────────────────
     #
-    # 节点实例在 workflow 引擎中是 **进程级单例**——同一实例可能被多个 asyncio
-    # task / 线程并发跑（不同会话同节点）。用 ``ContextVar`` 而非实例属性，
-    # per-request 隔离：
+    # Node instances are **process-level singletons** in the workflow engine -- the same instance may be
+    # run concurrently by multiple asyncio tasks / threads (same node across different sessions). Use a
+    # ``ContextVar`` rather than an instance attribute for per-request isolation:
     #
-    # - ``call()`` 入口 ``set(False)`` 拿 token；finally ``reset(token)`` 保证
-    #   退出后回到上层 context 的状态（异常路径也安全）
-    # - ``stream_text`` / ``_stream_callback`` 调 ``set(True)`` 写当前 context
-    # - 业务代码通过 ``self._reply_streamed`` 读（property 转发 ContextVar.get）
-    #   或 ``self._reply_streamed = True / False`` 写（setter 转发 ContextVar.set）
+    # - ``call()`` entry ``set(False)`` gets a token; finally ``reset(token)`` guarantees returning to
+    #   the outer context's state after exit (also safe on the exception path)
+    # - ``stream_text`` / ``_stream_callback`` call ``set(True)`` to write the current context
+    # - business code reads via ``self._reply_streamed`` (property forwards ContextVar.get)
+    #   or writes via ``self._reply_streamed = True / False`` (setter forwards ContextVar.set)
     #
-    # ContextVar 在每个 asyncio task 里独立 → 并发 call() 不互相干扰。
+    # A ContextVar is independent within each asyncio task → concurrent call() do not interfere with each other.
     _reply_streamed_var: ClassVar[contextvars.ContextVar[bool]] = contextvars.ContextVar(
         "agent_base_node_reply_streamed", default=False,
     )
 
     @property
     def _reply_streamed(self) -> bool:
-        """本轮 call() 内是否已流式推过文本。读 ContextVar，per-request 隔离。"""
+        """Whether text has already been streamed within this call(). Reads the ContextVar, per-request isolated."""
         return self._reply_streamed_var.get()
 
     @_reply_streamed.setter
     def _reply_streamed(self, value: bool) -> None:
-        """兼容业务代码 ``self._reply_streamed = True/False`` 写法。
+        """Supports the business-code ``self._reply_streamed = True/False`` style.
 
-        ``call()`` 内已用 ``set(False)`` + ``reset(token)`` 做完整生命周期管理，
-        本 setter 仅供 turn-internal 局部修改（如 ``stream_text`` / 兜底分支）。
+        ``call()`` already does full lifecycle management with ``set(False)`` + ``reset(token)``;
+        this setter is only for turn-internal local modifications (such as ``stream_text`` / fallback branches).
         """
         self._reply_streamed_var.set(value)
 
     def __init__(self, *, llm: Optional[Any] = None, **kwargs):
-        # 先初始化 BaseNode（接受 workflow 节点配置字段如 desc/title/type/...）
+        # Initialize BaseNode first (accepts workflow node config fields such as desc/title/type/...)
         BaseNode.__init__(self, **kwargs)
 
-        # 确保 LLM 工厂 / metric / langfuse 已接入 HARNESS_*（幂等）
+        # Ensure the LLM factory / metrics / langfuse are wired into HARNESS_* (idempotent)
         ensure_harness_wired()
 
-        # 业务可能返回 tuple/Sequence；统一转为 list 后再判存在性
+        # Business may return a tuple/Sequence; normalize to a list before checking existence
         middleware = list(self.build_middleware_for_agent() or [])
-        # 仅当业务未显式提供 ConversationHistoryMiddleware 时才注入默认
-        # （业务想要 save_turn=True 等定制配置时，自带的实例优先级更高）
+        # Only inject the default when business does not explicitly provide a ConversationHistoryMiddleware
+        # (when business wants custom config such as save_turn=True, its own instance takes priority)
         if not any(isinstance(m, ConversationHistoryMiddleware) for m in middleware):
             middleware.insert(0, ConversationHistoryMiddleware(save_turn=False))
 
-        # 再初始化 Agent（接受 model/tools/middleware/graph_builder/harness/...）
+        # Then initialize Agent (accepts model/tools/middleware/graph_builder/harness/...)
         Agent.__init__(
             self,
             model=llm,
@@ -178,18 +178,18 @@ class AgentBaseNode(BaseNode, Agent[OutputT], Generic[OutputT]):
             harness=self.build_harness_for_agent(),
             cache_graph=self.cache_graph,
         )
-        # 不再用 self._reply_streamed = False 实例属性——上面的 ContextVar property 接管
+        # No longer using the self._reply_streamed = False instance attribute -- the ContextVar property above takes over
 
-    # ───── 5 个可选钩子（默认值兜底） ──────────────────────
+    # ───── The 5 optional hooks (with default fallbacks) ──────────────────────
 
     def build_tools_for_agent(self) -> Sequence[Any]:
-        """业务工具。默认空。"""
+        """Business tools. Empty by default."""
         return []
 
     def build_middleware_for_agent(self) -> Sequence[AgentMiddleware]:
-        """LangChain ``AgentMiddleware`` 链。默认空。
+        """The LangChain ``AgentMiddleware`` chain. Empty by default.
 
-        典型业务装载：
+        Typical business setup:
 
             from agent_kit import (
                 EntryGuardMiddleware,
@@ -209,36 +209,36 @@ class AgentBaseNode(BaseNode, Agent[OutputT], Generic[OutputT]):
         return []
 
     def build_graph_builder_for_agent(self) -> Optional[GraphBuilder]:
-        """选择底层 graph 形态。返回 ``None`` 走 ``Agent`` 默认（``ReactGraphBuilder``）。
+        """Select the underlying graph shape. Returning ``None`` uses the ``Agent`` default (``ReactGraphBuilder``).
 
-        - 返回 ``ReactGraphBuilder(...)``：等价于老 ``CreateAgentBaseNode``
-        - 返回 ``DeepGraphBuilder(...)``：等价于老 ``DeepAgentBaseNode``
-        - 返回 ``CustomGraphBuilder(fn)``：等价于老 ``StateGraphBaseNode``
+        - return ``ReactGraphBuilder(...)``: equivalent to the old ``CreateAgentBaseNode``
+        - return ``DeepGraphBuilder(...)``: equivalent to the old ``DeepAgentBaseNode``
+        - return ``CustomGraphBuilder(fn)``: equivalent to the old ``StateGraphBaseNode``
         """
         return None
 
     def build_harness_for_agent(self):
-        """返回 ``Harness`` 实例；默认 ``default_harness()`` 与全局 HARNESS_* 共享状态。
+        """Return a ``Harness`` instance; defaults to ``default_harness()`` sharing state with the global HARNESS_*.
 
-        单测里业务可返回 ``Harness()`` 构造的独立实例做隔离。
+        In unit tests business can return an independent instance built with ``Harness()`` for isolation.
         """
         return default_harness()
 
-    # ───── 抽象钩子：build_command（把 Agent 产物翻译为 Command） ──────────
+    # ───── Abstract hook: build_command (translate the Agent product into a Command) ──────────
 
     @abstractmethod
     def build_command(self, state: GenericState, output: Any) -> Command:
-        """把 ``Agent.run`` 返回的产物（经 ``format_output`` 处理）翻译为
-        LangGraph ``Command``。
+        """Translate the product returned by ``Agent.run`` (processed by ``format_output``) into a
+        LangGraph ``Command``.
 
-        本方法是 workflow 层的"路由 + state 更新"决策点。``output`` 形态由
-        ``format_output`` 决定：
+        This method is the workflow layer's "routing + state update" decision point. The shape of ``output``
+        is determined by ``format_output``:
 
-        - 默认（未 override ``format_output``）：``output`` 是 ``str``（messages
-          末尾 AI 文本）或 ``output_schema()`` 实例（structured_response 命中）
-        - 子类 override ``format_output``：``output`` 可以是任意类型
+        - default (``format_output`` not overridden): ``output`` is a ``str`` (the AI text at the end of
+          messages) or an ``output_schema()`` instance (when structured_response hits)
+        - subclass overrides ``format_output``: ``output`` can be any type
 
-        典型实现::
+        Typical implementation::
 
             def build_command(self, state, output):
                 if isinstance(output, MyOutput):
@@ -248,20 +248,20 @@ class AgentBaseNode(BaseNode, Agent[OutputT], Generic[OutputT]):
                     )
                 return Command(update={"reply": str(output)})
 
-        ``Agent`` 本身工作流无关——``Command`` 是 LangGraph 框架特定输出，所以由
-        ``AgentBaseNode``（workflow 适配层）持有该抽象。
+        ``Agent`` itself is workflow-agnostic -- ``Command`` is a LangGraph-framework-specific output, so
+        ``AgentBaseNode`` (the workflow adaptation layer) holds this abstraction.
         """
 
-    # ───── stream_text：桥接到 LangGraph SSE ──────────────
+    # ───── stream_text: bridge to LangGraph SSE ──────────────
 
     def stream_text(self, text: str) -> None:
-        """workflow 节点流式输出。通过 LangGraph custom stream writer 推到 SSE。
+        """Workflow node streaming output. Pushes to SSE via the LangGraph custom stream writer.
 
-        与老 ``WorkflowAgentNodeMixin.stream_text`` 行为一致，便于业务节点
-        在 ``serialize_output`` 之外的位置主动推文本。
+        Consistent with the old ``WorkflowAgentNodeMixin.stream_text`` behavior, making it convenient for
+        business nodes to actively push text outside of ``serialize_output``.
         """
         if text:
-            # 直接走 ContextVar.set 避开 property 重定向开销
+            # Go directly through ContextVar.set to avoid the property redirection overhead
             self._reply_streamed_var.set(True)
         if not text:
             return
@@ -276,26 +276,26 @@ class AgentBaseNode(BaseNode, Agent[OutputT], Generic[OutputT]):
                 exc_info=True,
             )
 
-    # ───── BaseNode.call → Agent.run → build_command 桥接 ────────────────
+    # ───── BaseNode.call → Agent.run → build_command bridge ────────────────
 
     def call(self, state: GenericState, config: Optional[dict] = None) -> Command:
-        """workflow 调用入口。
+        """Workflow call entry point.
 
-        流程：
+        Flow:
 
-        1. ContextVar set/reset(token) 模式锁定本轮 ``_reply_streamed`` 隔离
-        2. 从 ``state["sys_query"]`` 取 user query
-        3. 构造 ``_stream_callback``，注入 ``RunnableConfig.configurable["stream_callback"]``，
-           让 ``Agent.run`` 原生流式（``graph.stream(stream_mode='messages')``）每个
-           AIMessageChunk 文本调一次回调
-        4. 调 ``Agent.run(state, user_query, config=run_config)`` 拿到 ``format_output``
-           处理后的产物（默认透传 = ``str`` 或 ``output_schema`` 实例）
-        5. 调 ``self.build_command(state, output)`` 把产物翻译为 ``Command`` 返回
+        1. The ContextVar set/reset(token) pattern locks this turn's ``_reply_streamed`` isolation
+        2. Get the user query from ``state["sys_query"]``
+        3. Construct ``_stream_callback``, inject it into ``RunnableConfig.configurable["stream_callback"]``,
+           so that ``Agent.run`` streams natively (``graph.stream(stream_mode='messages')``), calling the
+           callback once per AIMessageChunk text
+        4. Call ``Agent.run(state, user_query, config=run_config)`` to get the product processed by
+           ``format_output`` (passed through by default = ``str`` or ``output_schema`` instance)
+        5. Call ``self.build_command(state, output)`` to translate the product into a ``Command`` and return it
         """
         user_query = state.get("sys_query", "") if hasattr(state, "get") else ""
 
-        # set/reset(token)：本轮 ctx 内强制初始化为 False；call() 退出
-        # （正常 return / 异常）时回滚到上层 context 的值，避免脏状态泄漏到下一请求
+        # set/reset(token): force initialization to False within this ctx; on call() exit
+        # (normal return / exception) roll back to the outer context's value, avoiding dirty state leaking into the next request
         token = self._reply_streamed_var.set(False)
         try:
             def _stream_callback(token_text: str) -> None:
@@ -308,9 +308,9 @@ class AgentBaseNode(BaseNode, Agent[OutputT], Generic[OutputT]):
             configurable.setdefault("stream_callback", _stream_callback)
             run_config["configurable"] = configurable
 
-            # Agent.run → format_output 处理过的产物（默认透传）
+            # Agent.run → the product processed by format_output (passed through by default)
             output = self.run(state, user_query, config=run_config)
-            # 工作流层：把产物翻译为 LangGraph Command
+            # Workflow layer: translate the product into a LangGraph Command
             return self.build_command(state, output)
         finally:
             self._reply_streamed_var.reset(token)

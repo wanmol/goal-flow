@@ -29,43 +29,43 @@ class BaseNodeEvent(BaseGraphEvent):
 
 class NodeRunStartedEvent(BaseNodeEvent):
     """
-    节点运行开始事件
+    Node run started event
     """
     pass
 
 
 class NodeRunSucceededEvent(BaseNodeEvent):
     """
-    节点运行成功事件
+    Node run succeeded event
     """
     outputs: Optional[dict[str, Any]] = None
     """outputs"""
     
 class NodeRunStoppedEvent(BaseNodeEvent):
     """
-    工作流停止事件
+    Workflow stopped event
     """
     outputs: Optional[dict[str, Any]] = None
 
   
 class NodeRunInterruptEvent(BaseGraphEvent):
     """
-    流程中断事件    
+    Flow interrupt event
     """
     outputs: Optional[dict[str, Any]] = None
  
 class NodeRunControlEvent(BaseGraphEvent):
     """
-    节点控制事件  
-    比如对于研报创作，如果第一次流式输出内容不符合预期，进行第二次生成，需要发送一个控制事件，
-    告诉前端清空当前内容，准备接收新的流式输出    
+    Node control event
+    For example, for research report creation, if the first streaming output content does not meet expectations and a second generation is performed, a control event needs to be sent
+    to tell the frontend to clear the current content and prepare to receive new streaming output
     """
     outputs: Optional[dict[str, Any]] = None
     
  
 class NodeRunFailedEvent(BaseNodeEvent):
     """
-    节点运行失败事件
+    Node run failed event
     """
     error: str = Field(..., description="error")
     
@@ -88,8 +88,8 @@ LANGGRAPH_STREAM_MODE_CUSTOM = sys.intern("custom")
 
 CUSTOM_STREAM_MODE_PASSTHROUGH = sys.intern("__PASSTHROUGH__")
 
-# 节点通过 get_stream_writer 主动推送的文本片段（如 AgentBaseNode.stream_text）。
-# 事件数据形如 {"node_id": str, "text": str}，由 chunk processor 转成 NodeRunStreamChunkEvent。
+# text fragment actively pushed by a node via get_stream_writer (e.g. AgentBaseNode.stream_text).
+# the event data looks like {"node_id": str, "text": str}, converted by the chunk processor into a NodeRunStreamChunkEvent.
 CUSTOM_STREAM_MODE_DIRECT_OUTPUT = sys.intern("__DIRECT_OUTPUT__")
 
 WF_NODE_CONTROL_EVENT_NAME = sys.intern("__node_control__")

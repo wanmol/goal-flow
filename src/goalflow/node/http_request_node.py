@@ -96,7 +96,7 @@ class HttpRequestNode(BaseNode):
         if self.body and self.body.data:
             body_data = self.body.data
             if body_data and body_data != []:
-                # 默认body_data只有一个元素
+                # By default body_data has only one element
                 value = body_data[0].value
                 value = value.replace(u"\u00a0"," ")
                 value = value.replace(u'\xa0', u' ')
@@ -301,7 +301,7 @@ class HttpRequestNode(BaseNode):
             "sys_workflow_id": state.get("sys_workflow_id"),
             "sys_workflow_run_id": state.get("sys_workflow_run_id"),
         }
-        # 使用 dict.update() 比字典解包更高效
+        # Using dict.update() is more efficient than dict unpacking
         variable_pool.update(state.get("input_variables", {}))
         variable_pool.update(state.get("output_variables", {}))
         variable_pool.update(state.get("conversation_variables", {}))
@@ -438,14 +438,14 @@ class HttpRequestNode(BaseNode):
         
         max_retries ,retry_interval = self._get_max_retries_and_interval()
         
-        # 获取超时配置
+        # Get the timeout configuration
         connect_timeout = 10.0
         read_timeout = 300.0
         if self.timeout_config:
             connect_timeout = getattr(self.timeout_config, "max_connect_timeout", 10) or 10
             read_timeout = getattr(self.timeout_config, "max_read_timeout", 300) or 300
         
-        #TODO 多个请求复用相同client
+        #TODO reuse the same client across multiple requests
         client = SSEClient(
             url=url,
             method=self.method,
@@ -453,8 +453,8 @@ class HttpRequestNode(BaseNode):
             data=json.dumps(body, ensure_ascii=False) if body else None,
             reconnect_interval=retry_interval,
             max_reconnect_attempts=max_retries,
-            connect_timeout=connect_timeout,  # ✅ 传递连接超时
-            read_timeout=read_timeout          # ✅ 传递读取超时
+            connect_timeout=connect_timeout,  # ✅ pass the connect timeout
+            read_timeout=read_timeout          # ✅ pass the read timeout
         )
         message_callback = get_callback_by_url(url)
         
@@ -462,15 +462,15 @@ class HttpRequestNode(BaseNode):
             raise ValueError(f"未找到URL {url} 的消息回调函数")
         
         def on_error(error):
-            """处理错误"""
+            """Handle errors"""
             logger.error(f"sse发生错误: {error}, url={url}", exc_info=True)
             raise ValueError(f"sse发生错误: {error}, url={url}")
 
         def on_open():
-            """连接建立时调用"""
+            """Called when the connection is established"""
             logger.info(f"sse连接已建立, url={url}")
             
-        # 设置回调函数
+        # Set the callback functions
         client.on_message(partial(message_callback, node_id=self.id))
         client.on_error(on_error)
         client.on_open(on_open)

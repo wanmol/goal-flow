@@ -22,13 +22,13 @@ request_id: ContextVar[str] = ContextVar(
     "request_id", default=None
 )
 
-# 埋点上报用
+# Used for telemetry reporting
 trace_info: ContextVar[Dict[str, Any]] = ContextVar(
     "trace_info", default={}
 )
 
-# trace 上下文信息（trace_id 和 parent_span_id）
-# 格式：{"trace_id": "xxx", "parent_span_id": "xxx"}
+# trace context information (trace_id and parent_span_id)
+# Format: {"trace_id": "xxx", "parent_span_id": "xxx"}
 trace_context: ContextVar[Dict[str, Optional[str]]] = ContextVar(
     "trace_context", default={}
 )
@@ -169,7 +169,7 @@ def merge_context_vars(logger, method_name, event_dict) :
 
 
 class RequestIdFilter(logging.Filter):
-    """日志过滤器，用于从 contextvars 中获取 request_id 并注入到日志记录中。"""
+    """Logging filter that retrieves request_id from contextvars and injects it into log records."""
     def filter(self, record):
         _request_id = request_id.get()
 

@@ -62,7 +62,7 @@ class LLMNode(BaseNode):
         self.prompt_config = prompt_config
         self.streaming = True
         self.disable_streaming = False
-        # 处理大模型参数
+        # Process the large model parameters
         self._format_completion_params()
 
     def call(self, state: GenericState) -> NodeOutput:
@@ -72,7 +72,7 @@ class LLMNode(BaseNode):
         """
 
         try:
-            # 调用大模型
+            # Call the large model
             llm = LLM(
                 context=self.context,
                 prompt_config=self.prompt_config,
@@ -139,7 +139,7 @@ class LLMNode(BaseNode):
 
     def _format_completion_params(self):
         """
-        转换dify 中的大模型参数，适配langchain的大模型调用参数
+        Convert the large model parameters from dify to fit langchain's large model call parameters
         """
         completion_params = self.model.completion_params
         if completion_params:
@@ -157,7 +157,7 @@ class LLMNode(BaseNode):
         if match:
             json_str = match.group(1)
         else:
-            # 如果没有匹配到，尝试直接解析整个内容
+            # If no match is found, try to parse the entire content directly
             json_str = content
         return json_str
 

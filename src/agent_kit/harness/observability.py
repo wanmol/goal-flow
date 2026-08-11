@@ -1,10 +1,10 @@
 """
-Observability：agent_kit 内统一的 metric / trace 抽象接入点。
+Observability: the unified metric / trace abstraction entry point within agent_kit.
 
-设计原则：
-- agent_kit 包不直接绑定 Langfuse / Prometheus / 任何具体 trace/metric 后端
-- 通过抽象接口让调用方注入实现（业务侧把 emit_counter / Langfuse 接进来）
-- 不可用时**全部降级为 noop**，业务永远不会因为埋点失败而挂
+Design principles:
+- The agent_kit package does not directly bind to Langfuse / Prometheus / any concrete trace/metric backend
+- Abstract interfaces let the caller inject the implementation (the business side wires in emit_counter / Langfuse)
+- When unavailable, **everything degrades to noop**, so the business never fails because instrumentation failed
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def _noop(*args, **kwargs) -> None:  # pragma: no cover
 
 
 class SpanContext:
-    """``HARNESS_OBS.span(...)`` 返回的 context 对象。"""
+    """The context object returned by ``HARNESS_OBS.span(...)``."""
 
     def __init__(self, *, span_name: str, session_id: str, callbacks: list) -> None:
         self.span_name = span_name
@@ -34,9 +34,9 @@ class SpanContext:
 
 
 class Observability:
-    """跨 Runtime 共享的 metric / trace 接入点。
+    """The metric / trace entry point shared across Runtimes.
 
-    全局单例 ``HARNESS_OBS``。
+    Global singleton ``HARNESS_OBS``.
     """
 
     def __init__(self) -> None:
@@ -46,17 +46,17 @@ class Observability:
         self._langfuse_client = None
 
     def set_counter_emitter(self, emitter: CounterEmitter) -> None:
-        """注入 counter 实现（业务侧的 emit_counter）。"""
+        """Inject the counter implementation (the business side's emit_counter)."""
         self._counter = emitter
         logger.info(f"Observability: counter emitter registered ({emitter!r})")
 
     def set_histogram_emitter(self, emitter: HistogramEmitter) -> None:
-        """注入 histogram 实现（业务侧的 emit_histogram）。"""
+        """Inject the histogram implementation (the business side's emit_histogram)."""
         self._histogram = emitter
         logger.info(f"Observability: histogram emitter registered ({emitter!r})")
 
     def enable_langfuse(self, force: bool = False) -> bool:
-        """启用 Langfuse trace。自动检测 langfuse 是否可 import + 是否可建 client。"""
+        """Enable Langfuse trace. Auto-detects whether langfuse can be imported and whether a client can be built."""
         if not force and not HARNESS_SETTINGS.observability.langfuse_enabled:
             logger.info("Observability: Langfuse disabled by HARNESS_SETTINGS")
             self._langfuse_enabled = False
@@ -78,14 +78,14 @@ class Observability:
         self._langfuse_client = None
 
     def counter(self, metric_name: str, **labels) -> None:
-        """打 counter。Emitter 未注入时 noop；emitter 异常被吞掉。"""
+        """Emit a counter. Noop when no emitter is injected; emitter exceptions are swallowed."""
         try:
             self._counter(metric_name, **labels)
         except Exception as e:
             logger.warning(f"Observability.counter({metric_name!r}) failed: {e}")
 
     def histogram(self, metric_name: str, value: float, **labels) -> None:
-        """打 histogram。Emitter 未注入时 noop；emitter 异常被吞掉。"""
+        """Emit a histogram. Noop when no emitter is injected; emitter exceptions are swallowed."""
         try:
             self._histogram(metric_name, value=value, **labels)
         except Exception as e:
@@ -93,11 +93,11 @@ class Observability:
 
     @contextmanager
     def span(self, span_name: str, *, session_id: str, metadata: Optional[dict] = None):
-        """trace span context manager。
+        """trace span context manager.
 
-        metadata: 通过 langfuse propagate_attributes 注入，自动套用到所有 child
-        observation（包含 LangChain CallbackHandler 创建的 TOOL / GENERATION），
-        方便 UI 按业务维度过滤。
+        metadata: injected via langfuse propagate_attributes, automatically applied to all child
+        observations (including the TOOL / GENERATION created by the LangChain CallbackHandler),
+        making it convenient to filter in the UI by business dimension.
         """
         callbacks: list = []
         propagate_cm = None
@@ -133,7 +133,7 @@ class Observability:
             yield ctx
 
     def reset(self) -> None:
-        """全部恢复 noop 状态。仅单测使用。"""
+        """Restore everything to the noop state. For unit tests only."""
         self._counter = _noop
         self._histogram = _noop
         self._langfuse_enabled = False

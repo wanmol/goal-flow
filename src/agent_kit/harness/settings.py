@@ -1,18 +1,18 @@
-"""HarnessSettings：跨业务通用的 Agent 治理配置。
+"""HarnessSettings: cross-business common Agent governance configuration.
 
-设计原则：
-- 只放"跨业务通用"的配置（LLM 默认、metric 命名、log level、fallback 策略）
-- 业务专属配置（如 requirement_collection 的 max_turns / score_threshold）
-  继续放在业务模块自己的 settings.py，**不上抽到 Harness**——避免成为大杂烩
-- 业务 settings 可以从 HARNESS_SETTINGS 派生默认值（Day4 之后）
+Design principles:
+- Only hold "cross-business common" config (LLM defaults, metric naming, log level, fallback policy)
+- Business-specific config (such as requirement_collection's max_turns / score_threshold)
+  stays in the business module's own settings.py, **not lifted up into the Harness** -- to avoid becoming a catch-all
+- Business settings can derive default values from HARNESS_SETTINGS (after Day4)
 
-与宿主仓库现有 ``node/employer/requirement_collection/settings.py`` 的关系：
-- 后者继续存在，作为业务专属调参中心
-- 后者的 ``LLMSettings`` 节可以选择性地引用 ``HARNESS_SETTINGS.llm`` 的默认值
-  （Day4 实施 Model Router 时统一调整）
+Relationship to the host repo's existing ``node/employer/requirement_collection/settings.py``:
+- The latter continues to exist as the business-specific tuning center
+- The latter's ``LLMSettings`` section can optionally reference the defaults of ``HARNESS_SETTINGS.llm``
+  (adjusted uniformly when the Model Router is implemented on Day4)
 
-环境变量覆盖：故意不在 Harness 层做。如果业务需要 env 注入，
-在调用方注入 ``HarnessSettings(...)`` 自定义实例即可。
+Environment variable override: deliberately not done at the Harness layer. If the business needs env injection,
+just inject a custom ``HarnessSettings(...)`` instance at the call site.
 """
 from __future__ import annotations
 
@@ -20,13 +20,13 @@ from pydantic import BaseModel, Field
 
 
 class LLMDefaults(BaseModel):
-    """跨业务通用的 LLM 默认值。
+    """Cross-business common LLM default values.
 
-    业务可以重写：
-    - 议价节点要 32k context → 在业务 Settings 里改 default_max_tokens
-    - 复核节点要更冷温度 → 在业务 Settings 里改 default_temperature
+    The business can override:
+    - The bargaining node needs 32k context -> change default_max_tokens in the business Settings
+    - The review node needs a colder temperature -> change default_temperature in the business Settings
 
-    这里放的是"没有业务特殊需求时的合理默认"。
+    What's placed here are "reasonable defaults when there are no special business needs".
     """
 
     provider: str = Field(default="qwen", description="LangChain LLM 提供方标识")
@@ -43,7 +43,7 @@ class LLMDefaults(BaseModel):
 
 
 class ObservabilitySettings(BaseModel):
-    """metric / log / trace 相关。Day7 Observability 抽象使用。"""
+    """metric / log / trace related. Used by the Day7 Observability abstraction."""
 
     langfuse_enabled: bool = Field(
         default=True,
@@ -52,7 +52,7 @@ class ObservabilitySettings(BaseModel):
 
 
 class FallbackPolicy(BaseModel):
-    """Agent 失败时的全局兜底策略。Runtime.on_failure() 可读取。"""
+    """The global fallback policy when the Agent fails. Readable by Runtime.on_failure()."""
 
     reply: str = Field(
         default="请继续提供您的需求信息，我们将为您精准匹配。",
@@ -61,12 +61,12 @@ class FallbackPolicy(BaseModel):
 
 
 class HarnessSettings(BaseModel):
-    """Harness 治理底座的统一配置入口。
+    """The unified configuration entry point for the Harness governance base.
 
-    单测/调试时可以构造自定义实例覆盖全局单例：
+    For unit tests / debugging you can construct a custom instance to override the global singleton:
 
         custom = HarnessSettings(llm=LLMDefaults(default_model="qwen-max"))
-        HARNESS_SETTINGS = custom   # 不推荐在生产代码里这么做
+        HARNESS_SETTINGS = custom   # not recommended to do this in production code
     """
 
     llm: LLMDefaults = Field(default_factory=LLMDefaults)

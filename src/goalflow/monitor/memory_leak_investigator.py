@@ -12,29 +12,29 @@ from datetime import datetime
 import atexit
 
 class MemoryLeakInvestigator:
-    """系统化内存泄漏调查器"""
-    
+    """Systematic memory leak investigator"""
+
     def __init__(self, app_name: str):
         self.app_name = app_name
         self.snapshots = []
         self.leak_suspects = []
         self._setup_monitoring()
-        
-        # 注册退出时的分析
+
+        # Register analysis on exit
         atexit.register(self._exit_analysis)
-    
+
     def _setup_monitoring(self):
-        """设置监控"""
-        # 启用tracemalloc
+        """Set up monitoring"""
+        # Enable tracemalloc
         tracemalloc.start(25)
-        
-        # 启用objgraph回调
+
+        # Enable objgraph callback
         gc.set_debug(gc.DEBUG_SAVEALL)
-        
+
         print(f"🧠 {self.app_name} 内存泄漏监控已启用")
-    
+
     def take_snapshot(self, label: str = None):
-        """获取内存快照"""
+        """Take a memory snapshot"""
         snapshot = {
             'timestamp': time.time(),
             'datetime': datetime.now().isoformat(),
@@ -48,23 +48,23 @@ class MemoryLeakInvestigator:
         return snapshot
     
     def analyze_growth_patterns(self):
-        """分析增长模式"""
+        """Analyze growth patterns"""
         if len(self.snapshots) < 2:
             return {"error": "需要至少2个快照"}
-        
+
         results = []
-        
+
         for i in range(1, len(self.snapshots)):
             prev = self.snapshots[i-1]
             curr = self.snapshots[i]
-            
-            # 比较快照
+
+            # Compare snapshots
             diff = curr['tracemalloc'].compare_to(prev['tracemalloc'], 'lineno')
-            
-            # 分析显著增长
+
+            # Analyze significant growth
             significant_growth = []
-            for stat in diff[:20]:  # 查看前20个变化
-                if stat.size_diff > 1024 * 1024:  # 增长超过1MB
+            for stat in diff[:20]:  # look at the top 20 changes
+                if stat.size_diff > 1024 * 1024:  # growth exceeds 1MB
                     trace = stat.traceback
                     if trace:
                         frame = trace[0]
@@ -90,15 +90,15 @@ class MemoryLeakInvestigator:
         return results
     
     def find_circular_references(self, top_n: int = 10):
-        """查找循环引用"""
+        """Find circular references"""
         gc.collect()
-        gc.collect()  # 两次确保
-        
+        gc.collect()  # run twice to be sure
+
         garbage = gc.garbage
         if not garbage:
             return {"message": "未发现不可达的循环引用"}
-        
-        # 分析垃圾对象
+
+        # Analyze garbage objects
         analysis = []
         for i, obj in enumerate(garbage[:top_n]):
             analysis.append({
@@ -115,7 +115,7 @@ class MemoryLeakInvestigator:
         }
     
     def track_object_creation(self, target_type: str, duration: int = 30):
-        """跟踪特定类型对象的创建"""
+        """Track the creation of objects of a specific type"""
         print(f"👀 开始跟踪 {target_type} 对象创建，持续 {duration} 秒...")
         
         initial_count = self._count_objects_by_type(target_type)
@@ -137,7 +137,7 @@ class MemoryLeakInvestigator:
             if current_count - initial_count > 1000:
                 print(f"⚠️  {target_type} 快速增长: {current_count - initial_count} 个")
         
-        # 分析趋势
+        # Analyze the trend
         growth_rate = (snapshots[-1]['count'] - snapshots[0]['count']) / duration
         
         return {
@@ -152,7 +152,7 @@ class MemoryLeakInvestigator:
         }
     
     def _count_objects_by_type(self, target_type: str) -> int:
-        """统计特定类型的对象数量"""
+        """Count the number of objects of a specific type"""
         count = 0
         for obj in gc.get_objects():
             if type(obj).__name__ == target_type:
@@ -160,7 +160,7 @@ class MemoryLeakInvestigator:
         return count
     
     def _assess_growth(self, growth_rate: float, obj_type: str) -> str:
-        """评估增长严重性"""
+        """Assess the severity of the growth"""
         if growth_rate > 10:
             return f"🚨 严重泄漏: {obj_type} 以 {growth_rate:.1f}/秒的速度增长"
         elif growth_rate > 1:
@@ -171,7 +171,7 @@ class MemoryLeakInvestigator:
             return f"✅ 稳定: {obj_type} 数量稳定"
     
     def _exit_analysis(self):
-        """退出时分析"""
+        """Analysis on exit"""
         print("\n" + "="*60)
         print("程序退出 - 内存泄漏最终分析")
         print("="*60)
@@ -190,7 +190,7 @@ class MemoryLeakInvestigator:
                             print(f"  +{growth['size_diff_mb']:.1f}MB: {growth['filename']}:{growth['lineno']}")
                             print(f"    代码: {growth['line']}")
         
-        # 检查循环引用
+        # Check circular references
         circular = self.find_circular_references()
         if 'garbage_count' in circular and circular['garbage_count'] > 0:
             print(f"\n🚨 发现 {circular['garbage_count']} 个循环引用未清理")

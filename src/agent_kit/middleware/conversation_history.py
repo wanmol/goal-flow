@@ -1,8 +1,8 @@
-"""``ConversationHistoryMiddleware``：``ContextMiddleware`` 的语义化别名。
+"""``ConversationHistoryMiddleware``: a semantic alias for ``ContextMiddleware``.
 
-``ContextMiddleware`` 仍在 ``agent_kit.harness.middleware.context_middleware``
-原位保留并可继续 import；本模块以更精确的命名 re-export，让业务
-``from agent_kit.middleware import ConversationHistoryMiddleware`` 更直观。
+``ContextMiddleware`` is still retained in place at ``agent_kit.harness.middleware.context_middleware``
+and can still be imported; this module re-exports it under a more precise name, making
+``from agent_kit.middleware import ConversationHistoryMiddleware`` more intuitive for the business.
 """
 from agent_kit.harness.middleware.context_middleware import (
     ContextMiddleware as ConversationHistoryMiddleware,

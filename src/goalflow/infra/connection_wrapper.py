@@ -1,7 +1,7 @@
 """
 SQLAlchemy Connection Wrapper for PyMySQLSaver
 
-为 LangGraph PyMySQLSaver 提供兼容接口。
+Provides a compatible interface for LangGraph PyMySQLSaver.
 """
 
 
@@ -11,36 +11,36 @@ from goalflow.config import get_logger
 
 logger = get_logger(__name__)
 
-# 重试配置
+# Retry config
 MAX_RETRIES = 3
-RETRY_DELAY = 0.5  # 秒
+RETRY_DELAY = 0.5  # seconds
 
 
 class SQLAlchemyConnectionWrapper:
     """
-    包装 SQLAlchemy 引擎，提供 PyMySQLSaver 兼容的连接接口
-    
-    特性：
-    - 使用独立的连接池（与 Service 层隔离）
-    - 线程本地存储，确保线程安全
-    - 自动重试机制
-    - 失效连接自动丢弃
-    
-    使用方式：
+    Wraps a SQLAlchemy engine to provide a PyMySQLSaver-compatible connection interface
+
+    Features:
+    - Uses an independent connection pool (isolated from the Service layer)
+    - Thread-local storage to ensure thread safety
+    - Automatic retry mechanism
+    - Invalid connections are automatically discarded
+
+    Usage:
         engine = create_engine(...)
         conn = SQLAlchemyConnectionWrapper(engine)
         checkpointer = PyMySQLSaver(conn)
     """
-    
+
     def __init__(self, engine):
         """
-        初始化连接包装器
-        
+        Initialize the connection wrapper
+
         Args:
-            engine: SQLAlchemy Engine 实例（已配置连接池）
+            engine: SQLAlchemy Engine instance (connection pool already configured)
         """
         self.engine = engine
-        self._local = threading.local()  # 线程本地存储
+        self._local = threading.local()  # Thread-local storage
         
         try:
             pool_size = engine.pool.size()
@@ -53,21 +53,21 @@ class SQLAlchemyConnectionWrapper:
     
     def _get_connection(self, retries: int = MAX_RETRIES):
         """
-        从连接池获取连接（线程安全，带重试）
-        
+        Get a connection from the connection pool (thread-safe, with retry)
+
         Args:
-            retries: 重试次数
-        
+            retries: number of retries
+
         Returns:
-            pymysql.Connection: 底层 PyMySQL 连接对象
+            pymysql.Connection: the underlying PyMySQL connection object
         """
         last_error = None
-        
+
         for attempt in range(retries):
             try:
                 conn = self.engine.raw_connection()
-                
-                # 验证连接有效性
+
+                # Verify connection validity
                 try:
                     conn.ping(reconnect=False)
                 except Exception:
@@ -90,7 +90,7 @@ class SQLAlchemyConnectionWrapper:
         raise last_error or Exception("Failed to get database connection")
     
     def cursor(self, *args, **kwargs):
-        """获取游标（每次获取新连接，带重试）"""
+        """Get a cursor (obtains a new connection each time, with retry)"""
         last_error = None
         
         for attempt in range(MAX_RETRIES):
@@ -112,18 +112,18 @@ class SQLAlchemyConnectionWrapper:
         raise last_error or Exception("Failed to get cursor")
     
     def begin(self):
-        """开始事务（PyMySQLSaver 需要此方法）"""
+        """Begin a transaction (PyMySQLSaver requires this method)"""
         conn = getattr(self._local, 'conn', None)
         if conn is None:
             conn = self._get_connection()
             self._local.conn = conn
-        
+
         for attempt in range(MAX_RETRIES):
             try:
                 conn.begin()
                 return
             except Exception as e:
-                # 只在非首次尝试时记录 WARNING，首次用 DEBUG
+                # Only log WARNING on non-first attempts; use DEBUG for the first
                 if attempt == 0:
                     logger.debug(f"Connection lost, retrying... ({e})")
                 else:
@@ -138,16 +138,16 @@ class SQLAlchemyConnectionWrapper:
                     raise
     
     def commit(self):
-        """提交事务"""
+        """Commit the transaction"""
         conn = getattr(self._local, 'conn', None)
         if conn:
             try:
                 conn.commit()
             finally:
                 self._close_local_conn()
-    
+
     def rollback(self):
-        """回滚事务"""
+        """Roll back the transaction"""
         conn = getattr(self._local, 'conn', None)
         if conn:
             try:
@@ -159,10 +159,10 @@ class SQLAlchemyConnectionWrapper:
     
     def _close_local_conn(self, invalidate: bool = False):
         """
-        关闭线程本地连接
-        
+        Close the thread-local connection
+
         Args:
-            invalidate: 如果为 True，标记连接为无效（不归还到池中）
+            invalidate: if True, mark the connection as invalid (do not return it to the pool)
         """
         conn = getattr(self._local, 'conn', None)
         if conn:
@@ -180,18 +180,18 @@ class SQLAlchemyConnectionWrapper:
                 self._local.conn = None
     
     def __getattr__(self, name):
-        """代理其他属性访问到当前连接"""
+        """Proxy other attribute access to the current connection"""
         conn = getattr(self._local, 'conn', None)
         if conn is None:
             conn = self._get_connection()
             self._local.conn = conn
         return getattr(conn, name)
-    
-    # mysqlsaver 中没有使用到close，这里保留为了兼容
+
+    # close is not used in mysqlsaver; kept here for compatibility
     def close(self):
-        """关闭连接（归还到池）"""
+        """Close the connection (return it to the pool)"""
         self._close_local_conn()
-    
+
     def __del__(self):
-        """析构函数：确保连接被归还"""
+        """Destructor: ensure the connection is returned"""
         self._close_local_conn()

@@ -1,14 +1,14 @@
-"""DeepGraphBuilder：``deepagents.create_deep_agent`` 的策略包装。
+"""DeepGraphBuilder: a strategy wrapper around ``deepagents.create_deep_agent``.
 
-定位：多步骤需求收集 / planning / subagents / todos 场景。
+Purpose: multi-step requirement gathering / planning / subagents / todos scenarios.
 
-构造参数：
-- ``subagents``：sub-agent 列表
-- ``memory``：启动加载到 prompt 的 AGENTS.md 路径列表
-- ``interrupt_on``：HITL 中断工具配置 ``dict[tool_name, InterruptOnConfig | bool]``
-- ``response_format``：结构化响应
-- ``checkpointer``：默认 ``InMemorySaver``
-- ``**extra``：透传
+Constructor arguments:
+- ``subagents``: list of sub-agents
+- ``memory``: list of AGENTS.md paths loaded into the prompt at startup
+- ``interrupt_on``: HITL interrupt-tool config ``dict[tool_name, InterruptOnConfig | bool]``
+- ``response_format``: structured response
+- ``checkpointer``: defaults to ``InMemorySaver``
+- ``**extra``: passed through
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from langchain.agents.middleware import AgentMiddleware
 
 
 class DeepGraphBuilder:
-    """基于 ``deepagents.create_deep_agent`` 的 GraphBuilder。"""
+    """A GraphBuilder based on ``deepagents.create_deep_agent``."""
 
     def __init__(
         self,

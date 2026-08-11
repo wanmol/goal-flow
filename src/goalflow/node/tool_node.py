@@ -57,10 +57,10 @@ class ToolNode(BaseNode):
         self.func = func
         self.retry_config = retry_config
 
-        # 预计算重试参数，避免每次执行时重复计算
+        # Precompute retry parameters to avoid recomputing on each execution
         self._precompute_retry_config()
 
-        # 预编译错误处理器，提高错误处理效率
+        # Precompile error handlers to improve error handling efficiency
         self._error_handlers = {
             "default-value": self._handle_default_value_error,
             "fail-branch": self._handle_fail_branch_error
@@ -72,9 +72,9 @@ class ToolNode(BaseNode):
         """
         try:
 
-            # 变量池
+            # Variable pool
             variable_pool = self._merge_variables(state)
-            # 处理之后的结果必须为 dict 结构
+            # The processed result must be a dict structure
             outputs = self._execute_with_retry(variable_pool, state)
 
             result = VariableResolver.format_output(
@@ -93,7 +93,7 @@ class ToolNode(BaseNode):
 
     def _merge_variables(self, state: GenericState) -> Dict[str, Any]:
         """
-        使用高效的字典合并方式构建变量池
+        Build the variable pool using an efficient dict merge
         """
         variable_pool = {
             "sys_query": state.get("sys_query"),
@@ -105,14 +105,14 @@ class ToolNode(BaseNode):
             "sys_workflow_id": state.get("sys_workflow_id"),
             "sys_workflow_run_id": state.get("sys_workflow_run_id"),
         }
-        # 使用 dict.update() 比字典解包更高效
+        # Using dict.update() is more efficient than dict unpacking
         variable_pool.update(state.get("input_variables", {}))
         variable_pool.update(state.get("output_variables", {}))
         variable_pool.update(state.get("conversation_variables", {}))
         return variable_pool
 
     def _handle_default_value_error(self) -> Command:
-        """默认值错误处理"""
+        """Default value error handling"""
         default_text = self.default_value[0]['value'] if self.default_value else ''
         return Command(
             update=VariableResolver.format_output(
@@ -123,14 +123,14 @@ class ToolNode(BaseNode):
         )
 
     def _handle_fail_branch_error(self) -> Command:
-        """失败分支错误处理"""
+        """Fail branch error handling"""
         return Command(update={},goto=self.fail_branch_node_ids)
 
     def _handle_error(self, e):
         if not self.error_strategy:
             raise e
 
-        # 使用预编译的错误处理器
+        # Use the precompiled error handlers
         handler = self._error_handlers.get(self.error_strategy)
         if not handler:
             raise ValueError(f"Invalid error strategy: {self.error_strategy}")
@@ -138,7 +138,7 @@ class ToolNode(BaseNode):
 
     def _workflow_processor(self, variable_pool: dict[str, Any], state: GenericState) -> NodeOutput:
         """
-        处理子流程
+        Process the sub-workflow
         """
         if not self.tool_provider_config or not self.tool_provider_config.tool_parameters:
             return {}
@@ -146,7 +146,7 @@ class ToolNode(BaseNode):
         result = {}
         tool_parameters = self.tool_provider_config.tool_parameters
 
-        # 按参数类型分组，减少重复的条件判断
+        # Group by parameter type to reduce repeated conditional checks
         constant_params = {}
         mixed_params = {}
         variable_params = {}
@@ -162,14 +162,14 @@ class ToolNode(BaseNode):
             else:
                 raise ValueError(f"Invalid tool processor type: {param_type}")
 
-        # 批量处理常量参数
+        # Batch process constant parameters
         result.update(constant_params)
 
-        # 批量处理模板参数
+        # Batch process template parameters
         for key, template in mixed_params.items():
             result[key] = None if template is None else VariableResolver.replace_template(template, state)
 
-        # 批量处理变量参数
+        # Batch process variable parameters
         for key, value_selector in variable_params.items():
             result[key] = VariableResolver.resolve_value_selector(value_selector, state)
 
@@ -177,7 +177,7 @@ class ToolNode(BaseNode):
 
     def _precompute_retry_config(self):
         """
-        预计算重试配置参数
+        Precompute the retry configuration parameters
         """
         self._max_retries = 0
         self._retry_interval = 1.0
@@ -193,11 +193,11 @@ class ToolNode(BaseNode):
 
     def _execute_single_attempt(self, variable_pool: dict[str, Any], state: GenericState):
         """
-        单次执行尝试
+        Single execution attempt
         """
         if self.tool_provider_config:
             if self.tool_provider_config.provider_type == ToolProviderType.WORKFLOW:
-                # 处理工作流
+                # Process the workflow
                 wf_input = self._workflow_processor(variable_pool, state)
 
                 logger.info(f"tool node {self.formatted_name} sub workflow input : {wf_input}", node_id=self.formatted_name)
@@ -230,7 +230,7 @@ class ToolNode(BaseNode):
 
                 #function_response = self.func(**tool_parameters)
 
-                # json-ng 解析json
+                # json-ng parse json
                 function_response = self.func(
                      tool_parameters=_tool_parameters,
                      variable_pool=state,
@@ -246,15 +246,15 @@ class ToolNode(BaseNode):
         else:
             raise NotImplementedError(f"Provider type {self.tool_provider_config} not implemented")
 
-            # 实现json解析
-            # TODO: 实现其他provider类型
+            # Implement json parsing
+            # TODO: implement other provider types
             raise NotImplementedError(f"Provider type {self.tool_provider_config.provider_type} not implemented")
 
     def _execute_with_retry(self, variable_pool: dict[str, Any], state: GenericState) -> dict[str, Any] | Any:
         """
-        可重试 see http_request_node.py
+        Retryable see http_request_node.py
         """
-        # 快速路径：无重试时直接执行
+        # Fast path: execute directly when there are no retries
         if self._max_retries == 0:
             return self._execute_single_attempt(variable_pool, state)
 
@@ -266,14 +266,14 @@ class ToolNode(BaseNode):
             except Exception as e:
                 last_exception = e
 
-                # 快速失败：某些错误不应该重试
+                # Fast fail: certain errors should not be retried
                 if self._is_non_retryable_error(e):
                     raise e
 
                 if attempt < self._max_retries:
-                    # 指数退避算法
+                    # Exponential backoff algorithm
                     backoff_time = self._retry_interval * (2 ** attempt)
-                    time.sleep(min(backoff_time, 30))  # 最大退避30秒
+                    time.sleep(min(backoff_time, 30))  # Maximum backoff of 30 seconds
                 else:
                     raise e
 
@@ -281,8 +281,8 @@ class ToolNode(BaseNode):
 
     def _is_non_retryable_error(self, error: Exception) -> bool:
         """
-        判断是否为不可重试的错误
+        Determine whether the error is non-retryable
         """
-        # 配置错误、参数错误等不应该重试
+        # Configuration errors, parameter errors, etc. should not be retried
         non_retryable_errors = (ValueError, TypeError, AttributeError, KeyError)
         return isinstance(error, non_retryable_errors)

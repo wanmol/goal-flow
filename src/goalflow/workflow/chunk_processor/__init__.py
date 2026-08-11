@@ -1,3 +1,3 @@
 '''
-该模块主要是处理langgraph的原始输出内容
+This module mainly handles the raw output content from langgraph
 '''

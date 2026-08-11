@@ -1,4 +1,4 @@
-"""GraphBuilder 策略：Agent 用何种底层 graph 构造 API 的选择。"""
+"""GraphBuilder strategy: choosing which underlying graph construction API an Agent uses."""
 from agent_kit.graphs.base import GraphBuilder
 from agent_kit.graphs.custom import CustomGraphBuilder
 from agent_kit.graphs.deep import DeepGraphBuilder

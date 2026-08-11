@@ -1,24 +1,24 @@
-"""沙盒代码执行器：LLM 生成的代码统一走远端沙盒服务执行（不在本地执行）。
+"""Sandbox code executor: LLM-generated code always runs on a remote sandbox service (never locally).
 
-层次：
-- ``BaseSandboxExecutor``：抽象基类。``async execute(code) -> (success, output, metadata)``
-- ``DifySandboxExecutor``：默认实现，HTTP POST 调用远端 dify-sandbox 服务
+Layers:
+- ``BaseSandboxExecutor``: abstract base class. ``async execute(code) -> (success, output, metadata)``
+- ``DifySandboxExecutor``: default implementation, calls the remote dify-sandbox service via HTTP POST
 
-安全 / 稳定性约束（提交前拦截 + 输出归一化）：
-- 代码长度上限：用户逻辑 8 KB / 含注入数据总量 512 KB
-- 绘图库拦截：dify-sandbox 的 seccomp 会在 matplotlib 等出图时返回 EPERM，
-  远端无法绕过，故提交前拦截，给模型清晰可纠正的提示
-- 输出截断：``SANDBOX_OUTPUT_MAX_CHARS``（默认 8192 字符）
-- stderr 致命性判定：pandas/numpy 等会往 stderr 写 warning 但代码没崩，
-  仅当 stderr 含真正的异常/语法错误时才判失败
-- 进程级并发 lane：``threading.BoundedSemaphore`` 跨请求限制 sandbox 并发
-  （asyncio.Semaphore 绑定单事件循环管不住跨线程场景）
+Security / stability constraints (pre-submit interception + output normalization):
+- Code length limits: 8 KB for user logic / 512 KB total including injected data
+- Plotting library interception: dify-sandbox's seccomp returns EPERM when matplotlib etc. render,
+  which the remote side cannot bypass, so intercept before submission and give the model a clear, correctable hint
+- Output truncation: ``SANDBOX_OUTPUT_MAX_CHARS`` (default 8192 characters)
+- stderr fatality check: pandas/numpy etc. write warnings to stderr but the code did not crash,
+  so only treat it as a failure when stderr contains a real exception / syntax error
+- Process-level concurrency lane: ``threading.BoundedSemaphore`` limits sandbox concurrency across requests
+  (asyncio.Semaphore is bound to a single event loop and cannot cover the cross-thread case)
 
-exit_code 约定：
-- ``0``  成功
-- ``1``  代码出错（服务正常，但用户代码抛异常 / stderr 致命）
-- ``-1`` 超时
-- ``-2`` 连接级 / 服务级失败
+exit_code convention:
+- ``0``  success
+- ``1``  code error (service is fine, but user code raised an exception / stderr is fatal)
+- ``-1`` timeout
+- ``-2`` connection-level / service-level failure
 """
 from __future__ import annotations
 
@@ -32,42 +32,42 @@ from typing import Any, Dict, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 
-# ── 安全约束常量 ──────────────────────────────────────────────────
+# ── Security constraint constants ──────────────────────────────────────────────────
 SANDBOX_TIMEOUT_S: float = float(os.environ.get("SANDBOX_TIMEOUT_S", "15"))
 SANDBOX_OUTPUT_MAX_CHARS: int = int(os.environ.get("SANDBOX_OUTPUT_MAX_CHARS", "8192"))
-SANDBOX_CODE_MAX_BYTES: int = 8192          # 用户逻辑代码上限 8 KB
-SANDBOX_CODE_TOTAL_MAX_BYTES: int = 524288  # 含注入数据的总代码上限 512 KB
+SANDBOX_CODE_MAX_BYTES: int = 8192          # user logic code limit 8 KB
+SANDBOX_CODE_TOTAL_MAX_BYTES: int = 524288  # total code limit including injected data 512 KB
 
-# ── 全局 lane 信号量 ──────────────────────────────────────────────
-# 跨请求限制 sandbox 并发：每个请求可能跑在独立线程+独立事件循环，
-# asyncio.Semaphore 绑定单循环管不住，故用进程级 threading.BoundedSemaphore。
-# 获取走非阻塞轮询（50ms），等待中任务被取消不会泄漏槽位。
+# ── Global lane semaphore ──────────────────────────────────────────────
+# Limit sandbox concurrency across requests: each request may run on its own thread + own event loop,
+# asyncio.Semaphore is bound to a single loop and cannot cover this, so use a process-level threading.BoundedSemaphore.
+# Acquisition uses non-blocking polling (50ms); a task cancelled while waiting does not leak a slot.
 SANDBOX_MAX_CONCURRENCY: int = int(os.environ.get("SANDBOX_MAX_CONCURRENCY", "4"))
 SANDBOX_LANE_WAIT_S: float = float(os.environ.get("SANDBOX_LANE_WAIT_S", "10"))
 _GLOBAL_LANE = threading.BoundedSemaphore(SANDBOX_MAX_CONCURRENCY)
 
-# ── Dify 沙盒服务配置（HTTP）──────────────────────────────────────
+# ── Dify sandbox service config (HTTP) ──────────────────────────────────────
 DEFAULT_SANDBOX_API_URL = "http://sandbox.dify01:8194/v1/sandbox/run"
 DEFAULT_SANDBOX_API_KEY = "dify-sandbox"
 SANDBOX_LANGUAGE: str = os.environ.get("SANDBOX_LANGUAGE", "python3")
 
-# 绘图库：dify-sandbox 的 seccomp 会在 matplotlib 等导入/出图时返回 EPERM，
-# 远端服务侧无法绕过，因此直接在提交前拦截，给模型一个清晰可纠正的提示。
+# Plotting libraries: dify-sandbox's seccomp returns EPERM when importing/rendering matplotlib etc.,
+# which the remote service side cannot bypass, so intercept before submission and give the model a clear, correctable hint.
 _PLOTTING_LIBS = ("matplotlib", "seaborn", "plotly", "pylab", "pyplot")
 
-# stderr 中出现下列标志才判定为「真正失败」（区别于 pandas/numpy 的 warning）。
+# Only treat stderr as a "real failure" when one of the following markers appears (as opposed to pandas/numpy warnings).
 _FATAL_STDERR_MARKERS = (
     "Traceback (most recent call last)",
     "SyntaxError",
     "IndentationError",
     "TabError",
 )
-# 形如 "NameError:" / "ValueError:" / "ZeroDivisionError:" 的异常行尾标志。
+# Exception-line suffix markers such as "NameError:" / "ValueError:" / "ZeroDivisionError:".
 _FATAL_STDERR_SUFFIXES = ("Error:", "Exception:")
 
 
 def _truncate(text: str, max_chars: int = SANDBOX_OUTPUT_MAX_CHARS) -> str:
-    """输出截断，附带截断提示。"""
+    """Truncate output, appending a truncation notice."""
     if text is None:
         return ""
     if len(text) <= max_chars:
@@ -78,25 +78,25 @@ def _truncate(text: str, max_chars: int = SANDBOX_OUTPUT_MAX_CHARS) -> str:
 
 
 def _stderr_is_fatal(stderr: str) -> bool:
-    """判断 stderr 是否代表真正的执行失败（而非 warning）。
+    """Determine whether stderr represents a real execution failure (rather than a warning).
 
-    pandas / numpy / urllib3 等会往 stderr 写 ``FutureWarning`` /
-    ``DeprecationWarning`` 等，但代码并未崩溃；这类不应判失败。
-    仅当出现 Traceback / 语法错误 / ``XxxError:`` / ``XxxException:`` 才判致命。
+    pandas / numpy / urllib3 etc. write ``FutureWarning`` /
+    ``DeprecationWarning`` etc. to stderr, but the code did not crash; these should not count as failures.
+    Only treat it as fatal when a Traceback / syntax error / ``XxxError:`` / ``XxxException:`` appears.
     """
     if not stderr or not stderr.strip():
         return False
     for marker in _FATAL_STDERR_MARKERS:
         if marker in stderr:
             return True
-    # 逐行扫描异常行（避免 "...Warning: foo Error happened" 这类误判，只看行内冒号标志）
+    # Scan exception lines one by one (avoid false positives like "...Warning: foo Error happened"; only look at the in-line colon marker)
     for line in stderr.splitlines():
         line = line.strip()
         for suffix in _FATAL_STDERR_SUFFIXES:
             idx = line.find(suffix)
             if idx <= 0:
                 continue
-            # 标志前是标识符片段（如 NameError），且这一行不是 warning
+            # The text before the marker is an identifier fragment (e.g. NameError), and this line is not a warning
             head = line[:idx]
             if head and head[-1].isalpha() and "Warning" not in head:
                 return True
@@ -104,10 +104,10 @@ def _stderr_is_fatal(stderr: str) -> bool:
 
 
 def check_code(code: str) -> Optional[str]:
-    """提交前的本地校验。返回错误提示字符串表示应拦截；``None`` 表示放行。
+    """Local validation before submission. Returns an error message string to indicate it should be intercepted; ``None`` means allow it through.
 
-    - 代码长度上限
-    - 绘图库拦截（远端 seccomp 会 EPERM，提前给清晰提示）
+    - Code length limits
+    - Plotting library interception (remote seccomp would EPERM, so give a clear hint up front)
     """
     if not code or not code.strip():
         return "[Sandbox] 代码为空，无法执行。"
@@ -130,10 +130,10 @@ def check_code(code: str) -> Optional[str]:
 
 
 class _Lane:
-    """进程级并发 lane 的上下文管理器。
+    """Context manager for the process-level concurrency lane.
 
-    非阻塞轮询获取槽位（50ms），最多等待 ``SANDBOX_LANE_WAIT_S``；
-    超时抛 ``TimeoutError``。``__exit__`` 仅在成功获取后释放，避免泄漏。
+    Acquires a slot via non-blocking polling (50ms), waiting at most ``SANDBOX_LANE_WAIT_S``;
+    raises ``TimeoutError`` on timeout. ``__exit__`` releases only after a successful acquisition, avoiding leaks.
     """
 
     def __init__(self, wait_s: float = SANDBOX_LANE_WAIT_S):
@@ -160,34 +160,34 @@ class _Lane:
 
 
 class BaseSandboxExecutor(ABC):
-    """沙盒执行器抽象基类。"""
+    """Abstract base class for sandbox executors."""
 
     @abstractmethod
     async def execute(self, code: str) -> Tuple[bool, str, Dict[str, Any]]:
-        """执行代码，返回 ``(success, output, metadata)``。
+        """Execute code, returning ``(success, output, metadata)``.
 
-        - ``success=True``  → ``output`` 为 stdout 内容
-        - ``success=False`` → ``output`` 为错误信息
-        - ``metadata``      → dict，含 ``executor`` / ``exit_code`` /
-          ``execution_time_ms`` / ``stdout_lines`` / ``stderr`` 等
+        - ``success=True``  → ``output`` is the stdout content
+        - ``success=False`` → ``output`` is the error message
+        - ``metadata``      → dict, containing ``executor`` / ``exit_code`` /
+          ``execution_time_ms`` / ``stdout_lines`` / ``stderr`` etc.
         """
         ...
 
 
 class DifySandboxExecutor(BaseSandboxExecutor):
-    """Dify 沙盒服务执行器（HTTP）。
+    """Dify sandbox service executor (HTTP).
 
-    通过 HTTP POST 调用远端沙盒服务执行代码，服务侧负责隔离与资源限制::
+    Executes code by calling the remote sandbox service via HTTP POST; the service side handles isolation and resource limits::
 
         POST {api_url}
         headers: {"Content-Type": "application/json", "X-API-Key": <api_key>}
         body:    {"language": "python3", "code": <code>, "stdin": ""}
         resp:    {"code": 0, "data": {"stdout": "...", "stderr"/"error": "..."}}
 
-    环境变量：
-      ``SANDBOX_API_URL``  = http://sandbox.dify01:8194/v1/sandbox/run（默认）
-      ``SANDBOX_API_KEY``  = dify-sandbox（默认）
-      ``SANDBOX_LANGUAGE`` = python3（默认）
+    Environment variables:
+      ``SANDBOX_API_URL``  = http://sandbox.dify01:8194/v1/sandbox/run (default)
+      ``SANDBOX_API_KEY``  = dify-sandbox (default)
+      ``SANDBOX_LANGUAGE`` = python3 (default)
     """
 
     def __init__(
@@ -203,7 +203,7 @@ class DifySandboxExecutor(BaseSandboxExecutor):
         self.api_key = api_key or os.environ.get("SANDBOX_API_KEY", DEFAULT_SANDBOX_API_KEY)
 
     async def execute(self, code: str) -> Tuple[bool, str, Dict[str, Any]]:
-        # 提交前本地拦截（长度 / 绘图库）
+        # Local interception before submission (length / plotting libraries)
         blocked = check_code(code)
         if blocked is not None:
             return False, blocked, {
@@ -230,7 +230,7 @@ class DifySandboxExecutor(BaseSandboxExecutor):
             self.api_url, SANDBOX_LANGUAGE, self.timeout_s,
         )
 
-        # 进程级并发 lane：超出并发抛 TimeoutError → 归一化为连接级失败
+        # Process-level concurrency lane: exceeding concurrency raises TimeoutError → normalized to a connection-level failure
         try:
             lane = _Lane()
             lane.__enter__()
@@ -287,10 +287,10 @@ class DifySandboxExecutor(BaseSandboxExecutor):
         data = result.get("data") or {}
         stdout = data.get("stdout") or ""
         stderr = data.get("stderr") or data.get("error") or ""
-        # 服务侧 code != 0 → 服务/请求级失败（exit_code=-2），错误详情多在 result["message"]。
+        # Service-side code != 0 → service/request-level failure (exit_code=-2); error details are usually in result["message"].
         service_ok = result.get("code", 0) in (0, None)
         service_msg = "" if service_ok else str(result.get("message") or "").strip()
-        # stderr 可能只是 warning；仅当含真正异常/语法错误才判失败。
+        # stderr may only be a warning; only treat it as a failure when it contains a real exception/syntax error.
         success = service_ok and not _stderr_is_fatal(stderr)
 
         if success:

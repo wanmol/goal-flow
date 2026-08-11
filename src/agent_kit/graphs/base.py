@@ -1,15 +1,15 @@
-"""GraphBuilder：构造具体 LangGraph 实例的策略接口。
+"""GraphBuilder: the strategy interface for constructing a concrete LangGraph instance.
 
-设计意图：把"调底层 graph 构造 API 拼图"从 Runtime 子类继承结构里解耦，做成
-策略对象。``Agent`` 类持有一个 ``GraphBuilder`` 实例，调用 ``build(...)`` 拿
-``CompiledGraph``。
+Design intent: decouple the "assembling calls to the underlying graph construction API" from the
+Runtime subclass inheritance hierarchy, turning it into a strategy object. The ``Agent`` class
+holds a ``GraphBuilder`` instance and calls ``build(...)`` to obtain a ``CompiledGraph``.
 
-3 个内置实现：
+3 built-in implementations:
 - ``ReactGraphBuilder`` ← ``langchain.agents.create_agent``
 - ``DeepGraphBuilder`` ← ``deepagents.create_deep_agent``
-- ``CustomGraphBuilder`` ← 用户提供 callable
+- ``CustomGraphBuilder`` ← user-provided callable
 
-业务可以实现自己的 ``GraphBuilder``（如基于 langgraph 手拼 StateGraph）。
+Business code can implement its own ``GraphBuilder`` (e.g. hand-assembling a StateGraph on langgraph).
 """
 from __future__ import annotations
 
@@ -20,17 +20,17 @@ from langchain.agents.middleware import AgentMiddleware
 
 @runtime_checkable
 class GraphBuilder(Protocol):
-    """构造 CompiledGraph 的策略。
+    """Strategy for constructing a CompiledGraph.
 
-    实现要求 ``build(**kwargs) -> CompiledGraph``，参数名约定如下：
+    Implementations require ``build(**kwargs) -> CompiledGraph``, with the parameter naming convention:
 
-    - ``model``：``BaseChatModel`` 实例
-    - ``tools``：``Sequence[BaseTool]``
-    - ``middleware``：``Sequence[AgentMiddleware]``
-    - ``output_schema``：``Optional[type[BaseModel]]``
-    - ``**extra``：策略特有参数（如 deepagents 的 subagents / memory）
+    - ``model``: a ``BaseChatModel`` instance
+    - ``tools``: ``Sequence[BaseTool]``
+    - ``middleware``: ``Sequence[AgentMiddleware]``
+    - ``output_schema``: ``Optional[type[BaseModel]]``
+    - ``**extra``: strategy-specific parameters (e.g. deepagents' subagents / memory)
 
-    返回的 ``CompiledGraph`` 必须有 ``.invoke(input, config=...)`` 方法。
+    The returned ``CompiledGraph`` must have an ``.invoke(input, config=...)`` method.
     """
 
     def build(

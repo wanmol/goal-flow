@@ -1,25 +1,25 @@
-"""``node/_harness_bootstrap``：共享的 agent_kit Harness 接线代码。
+"""``node/_harness_bootstrap``: shared agent_kit Harness wiring code.
 
-把 ``node/agent_node_mixin.py`` 里原本内联的 ``_streaming_llm_factory`` 与
-``_ensure_harness_wired()`` 抽到独立模块，让：
+Extracts the ``_streaming_llm_factory`` and ``_ensure_harness_wired()`` that were
+originally inlined in ``node/agent_node_mixin.py`` into a standalone module, so that:
 
-- 老 ``node/agent_node_mixin.py``（P5 标记废弃，但仍工作）
-- 新 ``node/agent_base.py`` (基于 ADR-003 的 ``Agent`` 类的 workflow 适配)
+- the old ``node/agent_node_mixin.py`` (marked deprecated in P5, but still working)
+- the new ``node/agent_base.py`` (workflow adaptation of the ADR-003-based ``Agent`` class)
 
-都能 import 同一份接线代码，不互相依赖、不重复定义。
+can both import the same wiring code, without depending on each other or duplicating definitions.
 
-``_ensure_harness_wired`` 是幂等的——多次调用安全。约定：每个新 workflow base 在
-模块顶部调用一次，或在子类 ``__init__`` 里调用一次（``Harness`` 内部 ``HARNESS_*``
-单例共享，所以重复 wire 不会污染状态）。
+``_ensure_harness_wired`` is idempotent -- safe to call multiple times. Convention: each new
+workflow base calls it once at the top of the module, or once in the subclass ``__init__``
+(the ``Harness`` internal ``HARNESS_*`` singletons are shared, so re-wiring does not pollute state).
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-# 未 pip install 时（如 python start_server.py），保证 src/ 在 sys.path 上，
-# 使 goalflow 与 vendored agent_kit 均可 import。
-# 布局: src/goalflow/node/_harness_bootstrap.py → parents[3] == 项目根目录。
+# When not pip installed (e.g. python start_server.py), ensure src/ is on sys.path
+# so that both goalflow and the vendored agent_kit can be imported.
+# Layout: src/goalflow/node/_harness_bootstrap.py → parents[3] == project root.
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -34,11 +34,11 @@ from goalflow.tool.metrics import emit_counter, emit_histogram
 
 
 def _streaming_llm_factory(**kwargs):
-    """Agent 用 LLM 默认开启 streaming，供 graph.stream(messages) 逐 token 输出。
+    """The Agent LLM enables streaming by default, so graph.stream(messages) emits token by token.
 
-    本仓库的 ``LLM.create()`` 是 kwarg-only 签名，只认 provider/model/temperature/max_tokens；
-    HARNESS_ROUTER 兼容层传来的 ``timeout`` / ``max_retries`` / ``streaming`` 等扩展 kwarg
-    需要在这里过滤掉，避免 ``TypeError: got an unexpected keyword argument``。
+    This repo's ``LLM.create()`` has a kwarg-only signature and only accepts provider/model/temperature/max_tokens;
+    the extended kwargs passed by the HARNESS_ROUTER compatibility layer, such as ``timeout`` / ``max_retries`` / ``streaming``,
+    must be filtered out here to avoid ``TypeError: got an unexpected keyword argument``.
     """
     from goalflow.llm import LLM
 
@@ -51,13 +51,13 @@ def _streaming_llm_factory(**kwargs):
 
 
 def ensure_harness_wired() -> None:
-    """应用启动一次：把本仓库的 LLM 工厂、metric、Langfuse 接到 agent_kit Harness。
+    """Run once at app startup: wire this repo's LLM factory, metrics, and Langfuse into the agent_kit Harness.
 
-    幂等：多次调用安全（factory 已注册则跳过；emitter 重复 set 也无副作用）。
+    Idempotent: safe to call multiple times (skips if the factory is already registered; re-setting emitters has no side effect).
 
-    重要：本函数操作的是 ``HARNESS_ROUTER`` / ``HARNESS_OBS`` 全局单例对象。按 ADR-003
-    的不变量，``default_harness()`` 返回的 ``Harness`` 实例的 ``router`` / ``tracer``
-    属性 *就是* 同一组对象——所以本函数对新 ``Agent`` API 与老 ``AgentRuntime`` API 同时生效。
+    Important: this function operates on the ``HARNESS_ROUTER`` / ``HARNESS_OBS`` global singleton objects. Per the ADR-003
+    invariant, the ``router`` / ``tracer`` attributes of the ``Harness`` instance returned by ``default_harness()``
+    *are* the same set of objects -- so this function takes effect for both the new ``Agent`` API and the old ``AgentRuntime`` API.
     """
     if HARNESS_ROUTER._factory is None:  # noqa: SLF001
         HARNESS_ROUTER.register_llm_factory(_streaming_llm_factory)
@@ -67,5 +67,5 @@ def ensure_harness_wired() -> None:
     HARNESS_OBS.enable_langfuse()
 
 
-# 模块 import 时自动跑一次，与老 agent_node_mixin.py 行为一致
+# Runs once automatically on module import, consistent with the old agent_node_mixin.py behavior
 ensure_harness_wired()

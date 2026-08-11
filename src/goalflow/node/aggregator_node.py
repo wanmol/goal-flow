@@ -27,22 +27,22 @@ class AggregatorNode(BaseNode):
     def call(self,state:GenericState) -> NodeOutput:
         """
         Implements protocol _StateNode
-        根据是否分组来聚合变量：
-        - 不分组：从 variable_selectors 中找到第一个非 null 值，返回 {"output": result}
-        - 分组：遍历每个组，为每个组执行相同逻辑，返回 {"group_name": {"output": result}}
+        Aggregate variables depending on whether grouping is enabled:
+        - Not grouped: find the first non-null value in variable_selectors, return {"output": result}
+        - Grouped: iterate each group, apply the same logic per group, return {"group_name": {"output": result}}
         """
         outputs = {}
-        
-        # 检查是否启用了分组
+
+        # Check whether grouping is enabled
         if not self.advanced_settings or not self.advanced_settings.group_enabled:
-            # 不分组模式：遍历 variable_selectors，找到第一个非 null 的值
+            # Non-grouped mode: iterate variable_selectors, find the first non-null value
             for selector in self.variable_selectors:
                 variable_value = VariableResolver.resolve_value_selector(selector, state)
                 if variable_value is not None:
                     outputs["output"] = variable_value
                     break
         else:
-            # 分组模式：遍历每个组
+            # Grouped mode: iterate each group
             for group in self.advanced_settings.groups:
                 for selector in group.variables:
                     variable_value = VariableResolver.resolve_value_selector(selector, state)

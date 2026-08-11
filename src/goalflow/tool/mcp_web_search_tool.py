@@ -1,9 +1,9 @@
 """
-MCP Web Search Tool - 基于 MCP 协议的联网搜索工具
+MCP Web Search Tool - web search tool based on the MCP protocol
 
-使用 JSON-RPC over HTTP 协议连接远程 MCP 服务
+Connects to a remote MCP service using the JSON-RPC over HTTP protocol
 
-这是一个公共工具，可以被任何节点或 Agent 使用
+This is a public tool that can be used by any node or Agent
 """
 
 import asyncio
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 
 
 class MCPWebSearchTool:
-    """MCP 联网搜索工具（远程 HTTP 模式）"""
+    """MCP web search tool (remote HTTP mode)"""
     
     def __init__(
         self,
@@ -29,15 +29,15 @@ class MCPWebSearchTool:
         tool_name: Optional[str] = None
     ):
         """
-        初始化 MCP 搜索工具
-        
+        Initialize the MCP search tool
+
         Args:
-            remote_url: 远程 MCP 服务的 URL（例如：http://localhost:9001）
-            api_key: 远程服务的 API Key（必需，用于 Bearer Token 认证）
-            timeout: 请求超时时间（秒）
-            max_results: 最大返回结果数
-            debug: 是否启用调试模式
-            tool_name: 要使用的工具名称（如果不指定，使用第一个可用工具）
+            remote_url: URL of the remote MCP service (e.g. http://localhost:9001)
+            api_key: API Key of the remote service (required, used for Bearer Token authentication)
+            timeout: Request timeout (seconds)
+            max_results: Maximum number of results to return
+            debug: Whether to enable debug mode
+            tool_name: Name of the tool to use (if not specified, the first available tool is used)
         """
         if not remote_url:
             raise ValueError("remote_url is required")
@@ -58,20 +58,20 @@ class MCPWebSearchTool:
         logger.info(f"Initialized MCP HTTP client: url={remote_url}, timeout={timeout}s, auth=Bearer")
     
     def _get_next_msg_id(self) -> int:
-        """获取下一个消息 ID"""
+        """Get the next message ID"""
         self._msg_id += 1
         return self._msg_id
     
     async def _http_jsonrpc_request(self, method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        通过 HTTP 发送 JSON-RPC 请求
-        
+        Send a JSON-RPC request over HTTP
+
         Args:
-            method: MCP 方法名（如 "tools/list", "tools/call"）
-            params: 方法参数
-            
+            method: MCP method name (e.g. "tools/list", "tools/call")
+            params: Method parameters
+
         Returns:
-            JSON-RPC 响应
+            JSON-RPC response
         """
         msg_id = self._get_next_msg_id()
         
@@ -84,7 +84,7 @@ class MCPWebSearchTool:
         
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"  # 始终添加 Bearer Token
+            "Authorization": f"Bearer {self.api_key}"  # Always add the Bearer Token
         }
         
         async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -116,7 +116,7 @@ class MCPWebSearchTool:
                 raise
     
     async def _async_list_tools(self) -> List[Dict[str, Any]]:
-        """异步获取 MCP Server 中所有可用的工具"""
+        """Asynchronously get all available tools from the MCP Server"""
         try:
             with self._lock:
                 response = await self._http_jsonrpc_request("tools/list")
@@ -135,7 +135,7 @@ class MCPWebSearchTool:
             return []
     
     def list_tools(self) -> List[Dict[str, Any]]:
-        """获取 MCP Server 中所有可用的工具"""
+        """Get all available tools from the MCP Server"""
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -149,7 +149,7 @@ class MCPWebSearchTool:
             return []
     
     async def _async_call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
-        """异步调用指定的 MCP 工具"""
+        """Asynchronously call the specified MCP tool"""
         try:
             with self._lock:
                 response = await self._http_jsonrpc_request(
@@ -157,7 +157,7 @@ class MCPWebSearchTool:
                     params={"name": tool_name, "arguments": arguments}
                 )
                 
-                # 模拟 MCP 客户端的返回格式
+                # Mimic the return format of the MCP client
                 class Result:
                     def __init__(self, content):
                         self.content = content
@@ -179,7 +179,7 @@ class MCPWebSearchTool:
             raise
     
     def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
-        """调用指定的 MCP 工具"""
+        """Call the specified MCP tool"""
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -196,15 +196,15 @@ class MCPWebSearchTool:
     
     def search(self, query: str, tool_name: Optional[str] = None, count: int = 10) -> str:
         """
-        执行搜索并返回标准格式的 JSON 字符串
-        
+        Execute a search and return a JSON string in the standard format
+
         Args:
-            query: 搜索查询
-            tool_name: 工具名称（如果不指定，使用 self.tool_name 或第一个可用工具）
-            count: 返回结果数量
-            
+            query: Search query
+            tool_name: Tool name (if not specified, uses self.tool_name or the first available tool)
+            count: Number of results to return
+
         Returns:
-            JSON 字符串，格式：
+            JSON string, in the format:
             {
                 "data_type": "web_search",
                 "success": true,
@@ -213,7 +213,7 @@ class MCPWebSearchTool:
             }
         """
         def _sanitize_text_for_json(text: str, max_length: int = 500) -> str:
-            """清理文本，移除控制字符和限制长度"""
+            """Clean text, removing control characters and limiting length"""
             if not text:
                 return ""
             import re
@@ -221,11 +221,11 @@ class MCPWebSearchTool:
             if len(text) > max_length:
                 return text[:max_length] + "..."
             return text
-        
-        # 确定使用哪个工具
+
+        # Determine which tool to use
         tool_name = tool_name or self.tool_name
-        
-        # 如果没有指定工具，获取第一个可用工具
+
+        # If no tool is specified, get the first available tool
         if not tool_name:
             tools = self.list_tools()
             if not tools:
@@ -239,12 +239,12 @@ class MCPWebSearchTool:
             tool_name = tools[0]['name']
             logger.info(f"No tool specified, using first available: {tool_name}")
         
-        # 构建参数
+        # Build the parameters
         arguments = {"query": query, "num": count}
-        
+
         logger.info(f"Using MCP tool: {tool_name} with query: {query[:50]}...")
-        
-        # 调用工具
+
+        # Call the tool
         result = self.call_tool(tool_name, arguments)
         
         if not result or not hasattr(result, 'content'):
@@ -255,26 +255,26 @@ class MCPWebSearchTool:
                 "error": "No results from MCP server"
             }, ensure_ascii=False)
         
-        # 解析并标准化结果
+        # Parse and normalize the results
         data = []
         for content_item in result.content:
             if hasattr(content_item, "text"):
                 try:
-                    # 尝试解析 JSON
+                    # Try to parse JSON
                     parsed_content = json.loads(content_item.text)
-                    
-                    # 处理 MCP 返回的不同格式
+
+                    # Handle the different formats returned by MCP
                     if isinstance(parsed_content, dict) and "results" in parsed_content:
-                        # 格式 1: {"results": [...]}
+                        # Format 1: {"results": [...]}
                         results = parsed_content["results"]
                     elif isinstance(parsed_content, list):
-                        # 格式 2: [...]
+                        # Format 2: [...]
                         results = parsed_content
                     else:
-                        # 格式 3: {...}
+                        # Format 3: {...}
                         results = [parsed_content]
-                    
-                    # 标准化每个结果的格式
+
+                    # Normalize the format of each result
                     for item in results:
                         if isinstance(item, dict):
                             raw_title = item.get("title", "")
@@ -290,7 +290,7 @@ class MCPWebSearchTool:
                             })
                             
                 except json.JSONDecodeError as e:
-                    # 如果不是 JSON，作为纯文本处理
+                    # If it is not JSON, handle it as plain text
                     logger.warning(f"Failed to parse MCP response as JSON: {e}")
                     data.append({
                         "title": f"Result from {tool_name}",
@@ -309,7 +309,7 @@ class MCPWebSearchTool:
                 "error": "No search results found."
             }, ensure_ascii=False)
         
-        # 返回标准格式
+        # Return the standard format
         return json.dumps({
             "data_type": "web_search",
             "success": True,

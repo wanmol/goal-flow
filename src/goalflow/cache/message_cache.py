@@ -13,22 +13,22 @@ logger = get_logger(__name__)
 
 class MessageCache(MessageDB, BaseCache):
     """
-    消息缓存类
+    Message cache class
     """
 
     config = Config()
-    # 数据库分页大小
+    # Database page size
     limit: int = 25
-    # 缓存队列长度
+    # Cache queue length
     limit_cache: int = limit * 2 - 1
     # limit = config.MESSAGES_PER_PAGE
-    # 缓存时间（秒）
+    # Cache time (seconds)
     ttl: int = 3600
 
     @classmethod
     def _get_key(cls, conversation_id: str) -> str:
         """
-        获取消息缓存键
+        Get the message cache key
         """
         return f"{RedisKeyConstants.MESSAGE_PREFIX_BY_CONVERSATION_ID}{conversation_id}"
 
@@ -36,7 +36,7 @@ class MessageCache(MessageDB, BaseCache):
         *, conversation_id: str, messages: List[Message]
     ) -> List[Dict[str, str]]:
         """
-        消息列表转换为缓存格式
+        Convert a message list into cache format
         """
         data = []
         try:
@@ -77,14 +77,14 @@ class MessageCache(MessageDB, BaseCache):
     @classmethod
     def _message_to_llm_template(cls, *, message: Message):
         """
-        消息转换为缓存格式
+        Convert a message into cache format
         """
         try:
             if BaseCache.has_key(key=MessageCache._get_key(message.conversation_id)):
-                # Key存在，说明缓存未过期，消息添加到缓存队列头部
+                # Key exists, meaning the cache has not expired; add the message to the head of the cache queue
                 r_key = MessageCache._get_key(message.conversation_id)
 
-                # 只有当文本不为 answer和 query都不为 None 且不为空字符串时才添加到缓存
+                # Only add to the cache when both answer and query are not None and not empty strings
                 if (message.answer is not None and message.answer.strip()) and (
                     message.query is not None and message.query.strip()
                 ):
@@ -102,7 +102,7 @@ class MessageCache(MessageDB, BaseCache):
                         pipe.execute()
 
             else:
-                # Key不存在，需要重新刷新缓存
+                # Key does not exist, need to refresh the cache
                 message_list = MessageDB.get_by_conversation_id_and_limit(
                     conversation_id=message.conversation_id, limit=MessageCache.limit
                 )
@@ -110,7 +110,7 @@ class MessageCache(MessageDB, BaseCache):
                 MessageCache._messages_to_llm_template(
                     conversation_id=message.conversation_id, messages=message_list
                 )
-                # 转换为缓存格式
+                # Convert to cache format
         except Exception as e:
             logger.error(f"MessageCache._message_to_llm_template error: {e}")
             raise e
@@ -149,13 +149,13 @@ class MessageCache(MessageDB, BaseCache):
     def get_llm_template_by_conversation_id(
         cls, *, conversation_id: str
     ) -> List[Dict[str, str]]:
-        # 先从缓存中获取
+        # First get it from the cache
         cache_key = MessageCache._get_key(conversation_id)
         cached_data = redis_client.lrange(cache_key, 0, -1)
         if cached_data:
             return [json.loads(h) for h in cached_data]
 
-        # 缓存中没有，从数据库中获取
+        # Not in the cache, get it from the database
         message_list = super().get_by_conversation_id_and_limit(
             conversation_id=conversation_id
         )
@@ -163,7 +163,7 @@ class MessageCache(MessageDB, BaseCache):
             data = MessageCache._messages_to_llm_template(
                 conversation_id=conversation_id, messages=message_list
             )
-            # 修复：将JSON字符串转换为字典
+            # Fix: convert the JSON strings into dicts
             return [json.loads(item) for item in data] if data else []
         else:
             return []

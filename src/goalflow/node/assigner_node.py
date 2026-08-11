@@ -210,45 +210,45 @@ class AssignerNode(BaseNode):
         self, state: GenericState
     ) :
         """
-        合并state和从数据库查询的conversation_variables
-        state中已有的参数不会被覆盖
+        Merge state and the conversation_variables queried from the database
+        Parameters already present in state are not overwritten
 
         Args:
-            state: 当前工作流状态
+            state: the current workflow state
         Returns:
-            合并后的conversation_vars ,
-            是否为更新操作
+            the merged conversation_vars,
+            whether this is an update operation
         """
         merged_conversation_vars = {}
         self.conversation_id = state.get("sys_conversation_id")
-        # conversation_variables_obj: 从数据库查询的会话变量对象
+        # conversation_variables_obj: the conversation variable object queried from the database
         conversation_variables_obj = (
             WorkflowConversationVariablesService.get_by_conversation_id(
                 conversation_id=self.conversation_id
             )
         )
-        # 判断是修改还是新增
+        # Determine whether this is a modification or an insertion
         is_update_operation = conversation_variables_obj is not None
-        # 如果查询到了会话变量对象，则合并其data字段
+        # If a conversation variable object was found, merge its data field
         if conversation_variables_obj and hasattr(conversation_variables_obj, "data"):
             db_conversation_vars = conversation_variables_obj.data or {}
 
             if type(db_conversation_vars) == str:
                 db_conversation_vars = json.loads(db_conversation_vars)
 
-            # 获取state中现有的conversation_variables
+            # Get the existing conversation_variables from state
             current_conversation_vars = state.get("conversation_variables", {})
 
             merged_conversation_vars.update(
                 db_conversation_vars
-            )  # 先添加数据库中的变量
-            
+            )  # add the database variables first
+
             for key, value in current_conversation_vars.items():
                 if key not in merged_conversation_vars or value:
                     merged_conversation_vars[key] = value
-            
+
             # merged_conversation_vars.update(
             #     current_conversation_vars
-            # )  # state中的变量覆盖数据库中的同名变量
+            # )  # variables in state override same-named variables in the database
 
         return merged_conversation_vars, is_update_operation

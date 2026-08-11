@@ -17,10 +17,10 @@ class DifyDataAdapter(AbstractDataAdapter):
         self.config = config
 
     def generate(self, generator: Generator[str, None, None]) -> Generator[str, None, None]:
-        """流式消息转换：Dify 协议即内部格式，逐条透传。"""
+        """Streaming message conversion: the Dify protocol is the internal format, pass through each item as-is."""
         for chunk in generator:
             yield chunk
 
     def execute(self, data: ChatCompletionBlockingResponse) -> dict:
-        """非流式消息转换：直接返回阻塞响应的 dict 形式。"""
+        """Non-streaming message conversion: directly return the dict form of the blocking response."""
         return data.model_dump()

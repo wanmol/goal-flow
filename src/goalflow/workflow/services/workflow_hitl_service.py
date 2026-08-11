@@ -1,6 +1,6 @@
 """
-HITL 工作流控制器
-管理 HITL 审核流程的暂停、恢复和状态查询
+HITL workflow controller
+Manages the pause, resume and status query of the HITL review process
 """
 
 from typing import Optional, Dict, List, Any
@@ -18,19 +18,19 @@ logger = get_logger(__name__)
 
 
 class WorkflowHitlService:
-    """HITL(human in the loop) 工作流控制器"""
+    """HITL(human in the loop) workflow controller"""
     def __init__(self, workflow: BaseWorkflow[GenericState]):
         self.workflow = workflow
 
     def get_pending_reviews(self, workflow_run_id: str) -> List[Dict[str, Any]]:
         """
-        获取工作流的待审核记录
-        
+        Get the pending review records of the workflow
+
         Args:
-            workflow_run_id: 工作流运行ID
-            
+            workflow_run_id: workflow run ID
+
         Returns:
-            List[Dict]: 待审核记录列表（转换为字典）
+            List[Dict]: list of pending review records (converted to dicts)
         """
         reviews = HITLReviewDB.get_pending_by_workflow_run_id(workflow_run_id)
         
@@ -38,13 +38,13 @@ class WorkflowHitlService:
     
     def get_review(self, review_id: str) -> Optional[Dict[str, Any]]:
         """
-        获取单个审核记录
-        
+        Get a single review record
+
         Args:
-            review_id: 审核ID
-            
+            review_id: review ID
+
         Returns:
-            Optional[Dict]: 审核记录（转换为字典）或 None
+            Optional[Dict]: review record (converted to dict) or None
         """
         review = HITLReviewDB.get_by_review_id(review_id)
         
@@ -54,13 +54,13 @@ class WorkflowHitlService:
     
     def get_all_reviews(self, workflow_run_id: str) -> List[Dict[str, Any]]:
         """
-        获取工作流的所有审核记录
-        
+        Get all review records of the workflow
+
         Args:
-            workflow_run_id: 工作流运行ID
-            
+            workflow_run_id: workflow run ID
+
         Returns:
-            List[Dict]: 所有审核记录列表
+            List[Dict]: list of all review records
         """
         reviews = HITLReviewDB.get_all_by_workflow_run_id(workflow_run_id)
         
@@ -78,23 +78,23 @@ class WorkflowHitlService:
         init_state: Dict[str, Any] = {}
     ) :
         """
-        提交审核结果
-        
+        Submit review result
+
         Args:
-            review_id: 审核ID
-            action: 审核动作 (approve/modify/reject)
-            modified_data: 修改后的数据（仅当 action=modify 时）
-            submitted_by: 审核人ID
-            
+            review_id: review ID
+            action: review action (approve/modify/reject)
+            modified_data: modified data (only when action=modify)
+            submitted_by: reviewer ID
+
         Returns:
-            bool: 是否提交成功
+            bool: whether the submission was successful
         """
         workflow_run_id = init_state.get("sys_workflow_run_id")
-        # 验证 action
+        # validate action
         if action not in ['approve', 'modify', 'reject']:
             logger.error(f"Invalid action: {action}")
             yield format_stream_chunk(
-                # chunck_id暂时没有实际业务需求，前端也没有使用，临时赋值
+                # chunck_id has no actual business need for now, the frontend does not use it either, assign a temporary value
                 chunk_id=action,
                 event_type="error",
                 data={
@@ -105,11 +105,11 @@ class WorkflowHitlService:
                 task_id=workflow_run_id,
             )
         
-        # 如果是 modify，必须提供 modified_data
+        # if it is modify, modified_data must be provided
         if action == 'modify' and not modified_data:
             logger.error("Modified data is required for 'modify' action")
             yield format_stream_chunk(
-                # chunck_id暂时没有实际业务需求，前端也没有使用，临时赋值
+                # chunck_id has no actual business need for now, the frontend does not use it either, assign a temporary value
                 chunk_id=action,
                 event_type="error",
                 data={
@@ -120,7 +120,7 @@ class WorkflowHitlService:
                 task_id=workflow_run_id,
             )
         
-        # 更新审核状态
+        # update review status
         success = HITLReviewDB.update_status(
             review_id=review_id,
             status=action,  # approve/modify/reject
@@ -134,7 +134,7 @@ class WorkflowHitlService:
                 f"Review {review_id} submitted with action: {action}"
             )
 
-        # 获取审核记录
+        # get review record
         review = HITLReviewDB.get_by_review_id(review_id)
         if not review:
             logger.error(f"Review {review_id} not found after update")
@@ -165,51 +165,51 @@ class WorkflowHitlService:
             )
             return
         
-        # 获取原始框架数据
-        # ✅ 处理 modified_data 的嵌套结构：{"research_framework": {...}}
-        if modified_data and isinstance(modified_data, dict) and modified_data:  # 确保非空字典
-            # 如果 modified_data 中包含 research_framework 字段，提取它
+        # get the original framework data
+        # ✅ handle the nested structure of modified_data: {"research_framework": {...}}
+        if modified_data and isinstance(modified_data, dict) and modified_data:  # ensure non-empty dict
+            # if modified_data contains the research_framework field, extract it
             if "research_framework" in modified_data:
                 research_framework = modified_data.get("research_framework")
-                # ✅ 如果提取的值为空，使用原始框架
+                # ✅ if the extracted value is empty, use the original framework
                 if not research_framework:
                     research_framework = review.data.get("research_framework") if review.data else None
             else:
-                # 否则假设 modified_data 本身就是 research_framework
+                # otherwise assume modified_data itself is the research_framework
                 research_framework = modified_data
         else:
-            # 如果没有提供修改数据或为空，使用原始数据
+            # if no modified data is provided or it is empty, use the original data
             research_framework = review.data.get("research_framework") if review.data else None
-        
-        # 从 review.data 中恢复必需的上下文字段
+
+        # restore the required context fields from review.data
         review_data = review.data if review.data else {}
-        
+
         chat_service:ChatflowGenerateService = ChatflowGenerateService(self.workflow)
-        
-        # 执行恢复操作的后续节点可能有中断点
+
+        # the subsequent nodes of the resume operation may have interruption points
         chat_service.bind_interrupt_hook(self)
-        
-        # 构造恢复状态（包含所有必需字段）
+
+        # construct the resume state (containing all required fields)
         state_param = {
             "hitl_review_id" : review_id,
             "interrupt_id": review.interrupt_id,
             "research_framework": research_framework,
             "hitl_action" : action,
-            # 通过checkpoint恢复断点前的状态
+            # restore the state before the breakpoint via checkpoint
             "rt_thread_id" : thread_id,
-            # 从 review.data 中恢复的上下文字段
+            # context fields restored from review.data
             "sys_user_id": review_data.get("sys_user_id"),
             "sys_conversation_id": review_data.get("sys_conversation_id"),
             "sys_query": review_data.get("sys_query"),
             "input_variables": review_data.get("input_variables", {}),
-            # ✅ 恢复时间参数（如果存在）
+            # ✅ restore time parameters (if present)
             "sys_current_date": review_data.get("sys_current_date"),
             "sys_current_datetime": review_data.get("sys_current_datetime"),
         }
-        
-        # init_state 中的值优先级更高（仅更新非空字段）
+
+        # values in init_state have higher priority (only update non-empty fields)
         for key, value in init_state.items():
-            if value is not None:  # 只更新有值的字段
+            if value is not None:  # only update fields that have a value
                 state_param[key] = value
 
         try:
@@ -217,7 +217,7 @@ class WorkflowHitlService:
                state_param
             )
             
-            # 流式返回结果
+            # stream the results back
             yield from response
         except Exception as e:
             logger.error(f"Failed to resume workflow: {e}", exc_info=True)
@@ -240,14 +240,14 @@ class WorkflowHitlService:
         init_state: Dict[str, Any]
     ) :
         """
-        批准审核（快捷方法）
-        
+        Approve review (shortcut method)
+
         Args:
-            review_id: 审核ID
-            submitted_by: 审核人ID
-            
+            review_id: review ID
+            submitted_by: reviewer ID
+
         Returns:
-            bool: 是否批准成功
+            bool: whether the approval was successful
         """
         return self.submit_review(
             review_id=review_id,
@@ -264,15 +264,15 @@ class WorkflowHitlService:
         init_state: Dict[str, Any] = {}
     ) -> bool:
         """
-        修改后批准（快捷方法）
-        
+        Approve after modification (shortcut method)
+
         Args:
-            review_id: 审核ID
-            modified_data: 修改后的数据
-            submitted_by: 审核人ID
-            
+            review_id: review ID
+            modified_data: modified data
+            submitted_by: reviewer ID
+
         Returns:
-            bool: 是否修改成功
+            bool: whether the modification was successful
         """
         return self.submit_review(
             review_id=review_id,
@@ -289,14 +289,14 @@ class WorkflowHitlService:
         init_state: Dict[str, Any] = {}
     ) -> bool:
         """
-        拒绝审核（快捷方法）
-        
+        Reject review (shortcut method)
+
         Args:
-            review_id: 审核ID
-            submitted_by: 审核人ID
-            
+            review_id: review ID
+            submitted_by: reviewer ID
+
         Returns:
-            bool: 是否拒绝成功
+            bool: whether the rejection was successful
         """
         return self.submit_review(
             review_id=review_id,
@@ -307,10 +307,10 @@ class WorkflowHitlService:
     
     def cleanup_expired_reviews(self) -> int:
         """
-        清理过期的待审核记录
-        
+        Clean up expired pending review records
+
         Returns:
-            int: 清理的记录数量
+            int: number of cleaned records
         """
         count = HITLReviewDB.cleanup_expired()
         logger.info(f"Cleaned up {count} expired reviews")
@@ -319,13 +319,13 @@ class WorkflowHitlService:
 
     def get_workflow_status(self, workflow_run_id: str) -> Dict[str, Any]:
         """
-        获取工作流的 HITL 状态
-        
+        Get the HITL status of the workflow
+
         Args:
-            workflow_run_id: 工作流运行ID
-            
+            workflow_run_id: workflow run ID
+
         Returns:
-            Dict: 工作流 HITL 状态信息
+            Dict: workflow HITL status information
         """
         pending_reviews = self.get_pending_reviews(workflow_run_id)
         all_reviews = self.get_all_reviews(workflow_run_id)
@@ -344,13 +344,13 @@ class WorkflowHitlService:
 
     def _review_to_dict(self,review: HITLReview) -> Dict[str, Any]:
         """
-        将 Review 对象转换为字典
-        
+        Convert a Review object to a dict
+
         Args:
-            review: HITLReview 对象
-            
+            review: HITLReview object
+
         Returns:
-            Dict: 审核记录字典
+            Dict: review record dict
         """
         return {
             "id": review.id,
@@ -369,7 +369,7 @@ class WorkflowHitlService:
             "updated_at": review.updated_at.isoformat() if review.updated_at else None,
         }
         
-    #TODO 需要更新表aira_wf_hitl_review的字段interrupt_id
+    #TODO the interrupt_id field of table aira_wf_hitl_review needs to be updated
     def after_interrupt(self, interrupt: Interrupt) -> object:
         review_id = interrupt.value["review_id"]
         interrupt_id = interrupt.id
@@ -379,9 +379,9 @@ class WorkflowHitlService:
         HITLReviewDB.update_interrupt_id(review_id, interrupt_id)
 
 
-# 便捷函数
+# convenience functions
 def get_pending_reviews(workflow:BaseWorkflow,workflow_run_id: str) -> List[Dict[str, Any]]:
-    """获取待审核记录（便捷函数）"""
+    """Get pending review records (convenience function)"""
     return WorkflowHitlService(workflow).get_pending_reviews(workflow_run_id)
 
 
@@ -393,7 +393,7 @@ def submit_feedback(
     submitted_by: Optional[str] = None,
     init_state: Dict[str, Any] = {}
 ) -> bool:
-    """提交审核结果（便捷函数，已废弃）"""
+    """Submit review result (convenience function, deprecated)"""
     return WorkflowHitlService(workflow).submit_review(
         review_id=review_id,
         action=action,
@@ -409,7 +409,7 @@ def approve_workflow(
     submitted_by: Optional[str] = None,
     init_state: Dict[str, Any] = {}
 ) -> bool:
-    """批准审核（便捷函数，已废弃）"""
+    """Approve review (convenience function, deprecated)"""
     return WorkflowHitlService(workflow).approve(
         review_id=review_id,
         submitted_by=submitted_by,
@@ -424,7 +424,7 @@ def approve_with_modification(
     submitted_by: Optional[str] = None,
     init_state: Dict[str, Any] = {}
 ) -> bool:
-    """修改后批准（便捷函数，已废弃）"""
+    """Approve after modification (convenience function, deprecated)"""
     return WorkflowHitlService(workflow).modify(
         review_id=review_id,
         modified_data=modified_data,
@@ -439,7 +439,7 @@ def reject_workflow(
     submitted_by: Optional[str] = None,
     init_state: Dict[str, Any] = {}
 ) -> bool:
-    """拒绝审核（便捷函数，已废弃）"""
+    """Reject review (convenience function, deprecated)"""
     return WorkflowHitlService(workflow).reject(
         review_id=review_id,
         submitted_by=submitted_by,

@@ -1,7 +1,7 @@
 """
-研报管理 API
+Report management API
 
-提供研报查询、详情等接口
+Provides interfaces for querying reports, viewing details, etc.
 """
 
 from fastapi import APIRouter, HTTPException
@@ -15,22 +15,22 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/v1/reports", tags=["reports"])
 
 
-# ========== 请求体模型定义 ==========
+# ========== Request body model definitions ==========
 
 class ListReportsRequest(BaseModel):
-    """列出研报请求"""
+    """List reports request"""
     conversation_id: str = Field(..., description="会话ID")
 
 
 class GetReportDetailRequest(BaseModel):
-    """获取研报详情请求"""
+    """Get report detail request"""
     conversation_id: str = Field(..., description="会话ID")
     report_id: str = Field(..., description="研报ID")
     version: Optional[int] = Field(None, description="版本号（不传则返回最新版本）")
 
 
 class ListReportVersionsRequest(BaseModel):
-    """获取研报版本历史请求"""
+    """Get report version history request"""
     conversation_id: str = Field(..., description="会话ID")
     report_id: str = Field(..., description="研报ID")
 
@@ -38,18 +38,18 @@ class ListReportVersionsRequest(BaseModel):
 @router.post("/list")
 def list_reports(request: ListReportsRequest):
     """
-    获取指定会话下的所有研报列表
-    
-    用途：
-    - 前端展示研报选择器
-    - 显示所有研报的卡片（标题、摘要、版本）
-    - 高亮当前活跃的研报
-    
-    请求体:
+    Get the list of all reports under a given conversation
+
+    Purpose:
+    - Frontend displays the report selector
+    - Show cards for all reports (title, abstract, version)
+    - Highlight the currently active report
+
+    Request body:
         {
-            "conversation_id": "会话ID"
+            "conversation_id": "conversation ID"
         }
-    
+
     Returns:
         {
             "success": true,
@@ -63,11 +63,11 @@ def list_reports(request: ListReportsRequest):
     try:
         if not request.conversation_id:
             raise HTTPException(status_code=400, detail="conversation_id is required")
-        
+
         reports = ReportService.list_reports(request.conversation_id)
         active_report_id = ReportService.get_active_report_id(request.conversation_id)
-        
-        # 标记活跃研报
+
+        # Mark the active report
         for report in reports:
             report["is_active"] = (report["report_id"] == active_report_id)
         
@@ -87,19 +87,19 @@ def list_reports(request: ListReportsRequest):
 @router.post("/detail")
 def get_report_detail(request: GetReportDetailRequest):
     """
-    获取研报详情（指定版本或最新版本）
-    
-    用途：
-    - 查看完整报告内容
-    - 查看历史版本
-    
-    请求体:
+    Get report details (specified version or latest version)
+
+    Purpose:
+    - View the full report content
+    - View historical versions
+
+    Request body:
         {
-            "conversation_id": "会话ID",
-            "report_id": "研报ID",
-            "version": 1  // 可选，不传则返回最新版本
+            "conversation_id": "conversation ID",
+            "report_id": "report ID",
+            "version": 1  // optional; if omitted, returns the latest version
         }
-    
+
     Returns:
         {
             "success": true,
@@ -136,19 +136,19 @@ def get_report_detail(request: GetReportDetailRequest):
 @router.post("/versions")
 def list_report_versions(request: ListReportVersionsRequest):
     """
-    获取研报的所有版本历史
-    
-    用途：
-    - 查看版本变更历史
-    - 比较不同版本
-    - 回滚到历史版本
-    
-    请求体:
+    Get all version history of a report
+
+    Purpose:
+    - View the version change history
+    - Compare different versions
+    - Roll back to a historical version
+
+    Request body:
         {
-            "conversation_id": "会话ID",
-            "report_id": "研报ID"
+            "conversation_id": "conversation ID",
+            "report_id": "report ID"
         }
-    
+
     Returns:
         {
             "success": true,

@@ -1,7 +1,7 @@
 """
-Research 相关的流式事件定义
+Research-related streaming event definitions
 
-用于输出研究过程的中间数据
+Used to output intermediate data of the research process
 """
 
 from typing import Dict, Any, List, Optional
@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 @dataclass
 class ResearchProgressEvent:
-    """研究进度事件"""
+    """Research progress event"""
     node_id: str
     stage: str  # background/framework/planning/execution/reporting
     progress: Dict[str, Any]
@@ -19,7 +19,7 @@ class ResearchProgressEvent:
 
 @dataclass
 class ToolCallEvent:
-    """工具调用事件"""
+    """Tool call event"""
     node_id: str
     task_id: str
     tool_name: str  # web_search/web_crawler/knowledge_base/python_executor
@@ -31,7 +31,7 @@ class ToolCallEvent:
 
 @dataclass
 class TaskExecutionEvent:
-    """任务执行事件"""
+    """Task execution event"""
     node_id: str
     task_id: str
     task_title: str
@@ -43,11 +43,11 @@ class TaskExecutionEvent:
 
 @dataclass
 class SearchResultEvent:
-    """搜索结果事件"""
+    """Search result event"""
     node_id: str
     task_id: str
     query: str
-    results: List[Dict[str, Any]]  # 前5个结果
+    results: List[Dict[str, Any]]  # top 5 results
     total_count: int
     provider: str  # qianfan/tavily/serper
     timestamp: str
@@ -55,7 +55,7 @@ class SearchResultEvent:
 
 @dataclass
 class CrawlerResultEvent:
-    """爬虫结果事件"""
+    """Crawler result event"""
     node_id: str
     task_id: str
     url: str
@@ -67,10 +67,10 @@ class CrawlerResultEvent:
 
 @dataclass
 class CodeExecutionEvent:
-    """代码执行事件"""
+    """Code execution event"""
     node_id: str
     task_id: str
-    code_snippet: str  # 前500字符
+    code_snippet: str  # first 500 characters
     output: str
     execution_time: float
     status: str
@@ -79,17 +79,17 @@ class CodeExecutionEvent:
 
 @dataclass
 class KnowledgeBaseResultEvent:
-    """知识库检索结果事件"""
+    """Knowledge base retrieval result event"""
     node_id: str
     task_id: str
     query: str
     collection_type: str  # single/multi
-    collection_name: Optional[str] = None  # 单表查询时的表名
-    path_config_name: Optional[str] = None  # 多表查询时的配置名
-    results: List[Dict[str, Any]] = None  # 检索结果（前5个）
+    collection_name: Optional[str] = None  # table name for single-table query
+    path_config_name: Optional[str] = None  # config name for multi-table query
+    results: List[Dict[str, Any]] = None  # retrieval results (top 5)
     total_count: int = 0
     search_type: str = "hybrid"  # vector/keyword/hybrid
-    avg_score: float = 0.0  # 平均相关性分数
+    avg_score: float = 0.0  # average relevance score
     status: str = "completed"
     timestamp: str = ""
 

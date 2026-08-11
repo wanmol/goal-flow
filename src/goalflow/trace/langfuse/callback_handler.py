@@ -99,41 +99,41 @@ class TruncatedCallbackHandler(CallbackHandler):
     _PROBE_ENABLED: bool = LANGFUSE_SPAN_PROBE
     _PROBE_T0: float = time.time() if LANGFUSE_SPAN_PROBE else 0.0
 
-    # LangGraph 0.2+ 内部 chain 特征关键字（用于在 on_chain_start 早期直接 no-op，
-    # 避免 Langfuse 为这些 1-2ms 的 channel read/write / state merge / route 节点创建 span）
-    # 注意：必须用精确类名匹配，不能用 "Pregel"/"langgraph" 这种宽泛前缀
-    # （PregelNode 包装业务 node，id 路径里也含 "Pregel"，宽泛匹配会误判业务）
+    # Feature keywords for LangGraph 0.2+ internal chains (used to no-op early in on_chain_start,
+    # to avoid Langfuse creating spans for these 1-2ms channel read/write / state merge / route nodes)
+    # Note: must match exact class names, not broad prefixes like "Pregel"/"langgraph"
+    # (PregelNode wraps a business node, and its id path also contains "Pregel"; broad matching would misclassify business nodes)
     _INTERNAL_GRAPH_KEYWORDS: tuple = (
-        # Channel read/write/invoke（state 字典被来回传递，input/output 一样）
+        # Channel read/write/invoke (the state dict is passed back and forth, input/output are the same)
         "ChannelRead", "ChannelWrite", "ChannelInvoke", "ChannelBatch",
-        # Pregel 框架自身（不是包装业务 node 的 PregelNode）
+        # The Pregel framework itself (not the PregelNode that wraps a business node)
         "PregelLoop", "PregelRunner", "PregelTaskWrites", "PregelTick",
-        # Branch 条件分支
+        # Branch conditional branches
         "Branch", "ConditionalBranch",
-        # LangGraph 0.2+ 自己的 RunnableSeq（不同于 LangChain 的 RunnableSequence）
+        # LangGraph 0.2+'s own RunnableSeq (different from LangChain's RunnableSequence)
         "RunnableSeq",
         # Passthrough
         "Passthrough",
-        # LangGraph 内部小函数名
+        # LangGraph internal small function names
         "_read", "_write", "_invoke",
     )
 
     @classmethod
     def _is_internal_graph_chain(cls, serialized: Any) -> bool:
-        """识别 LangGraph 框架内部的 channel/route/state chain。
+        """Identify channel/route/state chains internal to the LangGraph framework.
 
-        返回 True 时调用方应直接 no-op（不调 super()，避免 Langfuse 创建 span）。
+        When True is returned, the caller should no-op directly (do not call super(), to avoid Langfuse creating a span).
         """
         if not isinstance(serialized, dict):
             return False
         kws = cls._INTERNAL_GRAPH_KEYWORDS
-        # 1) 看 id 路径（list of str）
+        # 1) Check the id path (list of str)
         sid = serialized.get("id")
         if isinstance(sid, list):
             for token in sid:
                 if isinstance(token, str) and any(k in token for k in kws):
                     return True
-        # 2) 看 name 字段（str）
+        # 2) Check the name field (str)
         name = serialized.get("name")
         if isinstance(name, str) and any(k in name for k in kws):
             return True
@@ -148,7 +148,7 @@ class TruncatedCallbackHandler(CallbackHandler):
     ) -> None:
         super().__init__(public_key=public_key, trace_context=trace_context)
         self.max_string_length = max_string_length
-        # 缓存 trace_id（父类会把 trace_context 原样存到 self._trace_context）
+        # Cache the trace_id (the parent class stores trace_context as-is on self._trace_context)
         self._trace_id: Optional[str] = (
             trace_context.get("trace_id")
             if isinstance(trace_context, dict) else None
@@ -157,12 +157,12 @@ class TruncatedCallbackHandler(CallbackHandler):
     def _probe(self, event: str, run_id: Optional[UUID] = None, **extra) -> None:
         """Emit a structured span-probe log record. No-op when probe is disabled.
 
-        structlog 会把以下字段渲染为独立 JSON 字段（不混在 msg 里）：
+        structlog will render the following fields as separate JSON fields (not mixed into msg):
             msg       = event  (e.g. "on_chain_start")
-            t         = 相对 t0 的秒数
-            run_id    = run_id 前 8 位
-            trace_id  = trace_id 前 8 位（独立字段，便于日志系统按 trace_id 过滤）
-            **extra   = 调用方传入的额外字段（n_msgs / parent / n_prompts / name / tool_node 等）
+            t         = seconds relative to t0
+            run_id    = first 8 chars of run_id
+            trace_id  = first 8 chars of trace_id (a separate field, so the log system can filter by trace_id)
+            **extra   = extra fields passed in by the caller (n_msgs / parent / n_prompts / name / tool_node, etc.)
         """
         if not self._PROBE_ENABLED:
             return
@@ -226,14 +226,14 @@ class TruncatedCallbackHandler(CallbackHandler):
         inputs: Any,
         **kwargs: Any,
     ) -> None:
-        # 1) 过滤 LangGraph 内部 channel/route/state chain
+        # 1) Filter out LangGraph internal channel/route/state chains
         if LANGFUSE_FILTER_INTERNAL_CHAINS and self._is_internal_graph_chain(serialized):
             return
 
         run_id = kwargs.get("run_id")
         parent_run_id = kwargs.get("parent_run_id")
 
-        # 业务 chain → 正常透传
+        # Business chain -> pass through normally
         self._probe(
             "on_chain_start", run_id,
             parent=str(parent_run_id) if parent_run_id else "None",
@@ -246,7 +246,7 @@ class TruncatedCallbackHandler(CallbackHandler):
 
     def on_chain_end(self, outputs: Any, **kwargs: Any) -> None:
         run_id = kwargs.get("run_id")
-        # 普通业务 chain end
+        # Normal business chain end
         self._probe("on_chain_end", run_id)
         try:
             super().on_chain_end(outputs, **kwargs)

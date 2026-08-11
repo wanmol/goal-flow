@@ -13,12 +13,12 @@ from goalflow.tool.utils import VariableResolver
 logger = get_logger(__name__)
 
 NodeOutput = Union[
-    TypedDict,  #输出json格式变更内容
-    Dict,   #输出json格式变更内容
-    List[str],  #主要用于分支节点(ifelse,question-classifier)
-    Command,  #适用于带fail-branch操作的节点
-    Sequence[Send],  #适用于同一节点并行执行多次，相当于map-reduce操作
-    None  #即没有更新操作也没有动态路由操作
+    TypedDict,  # outputs JSON-format changed content
+    Dict,   # outputs JSON-format changed content
+    List[str],  # mainly for branch nodes (ifelse, question-classifier)
+    Command,  # for nodes with fail-branch operations
+    Sequence[Send],  # for a node executed multiple times in parallel, like a map-reduce operation
+    None  # neither an update operation nor a dynamic routing operation
 ]
 
 
@@ -31,26 +31,26 @@ class BaseNode(ABC,Generic[GenericState]):
     variables : Optional[List[NodeVarConfig]] = None
     
     isInIteration: Optional[bool] = False
-    """是否在迭代节点中"""
-    
+    """Whether it is inside an iteration node"""
+
     isInLoop: Optional[bool] = False
-    """是否在循环节点中"""
-    
+    """Whether it is inside a loop node"""
+
     iteration_id: Optional[str] = None
-    
+
     loop_id: Optional[str] = None
-    
+
     pre_node_ids: Optional[list[str]] = None
-    """前置节点id"""
-    
+    """Predecessor node id"""
+
     next_node_ids: Optional[list[str]] = None
-    """后置节点id"""
-    
+    """Successor node id"""
+
     fail_branch_node_ids: Optional[list[str]] = None
-    """失败分支节点id"""
-    
+    """Fail-branch node id"""
+
     parent_node_id: Optional[str] = None
-    """父节点id, 循环节点或者迭代节点id"""
+    """Parent node id, the loop node or iteration node id"""
 
     wf_name: Optional[str] = None
     
@@ -180,13 +180,13 @@ class BaseNode(ABC,Generic[GenericState]):
                 node_started=True,
             )
 
-        # 预处理
+        # Preprocessing
         value = self.pre_call(state)
         if value is not None:
             return value
 
         try:
-            # 执行业务逻辑
+            # Execute the business logic
             value: Command = self.call(state)
 
             next_node_ids =  []
@@ -203,7 +203,7 @@ class BaseNode(ABC,Generic[GenericState]):
             #     if isinstance(data, dict):
             #         result = data.copy()
             #         for key, value in list(result.items()):
-            #             # 检查是否为需要截断的字段
+            #             # Check whether this is a field that needs truncation
             #             if key == "financial_data" or "start_001_financial_data" == key:
             #                 result[key] = "<truncated_large_data>"
             #             elif key.startswith("start_001_financial_data"):
@@ -211,15 +211,15 @@ class BaseNode(ABC,Generic[GenericState]):
             #             elif key in ["company_info_str", "core_view_data", "operating_condition_data", "asset_quality_data", "liability_situation_data"]:
             #                 result[key] = value[:30] + "..." if len(value) > 30 else value
             #             else:
-            #                 # 递归处理嵌套字典
+            #                 # Recursively process nested dicts
             #                 result[key] = recursive_truncate(value)
             #         return result
             #     elif isinstance(data, list):
-            #         # 递归处理列表中的每个元素
+            #         # Recursively process each element in the list
             #         return [recursive_truncate(item) for item in data]
             #     return data
-            
-            # # 递归截断输出数据
+
+            # # Recursively truncate the output data
             # log_output = recursive_truncate(copy.deepcopy(output))
             if self.isInIteration:
                 iteration_item = VariableResolver.resolve_value_selector([self.parent_node_id, "item"], state)
@@ -259,10 +259,10 @@ class BaseNode(ABC,Generic[GenericState]):
             return value
 
         except Exception as e:
-            # 必须抛出异常，外部捕获处理并发送error事件给前端
+            # Must re-raise the exception; the outer layer catches it and sends an error event to the frontend
             raise e
-    
-    # 打印输出output用到， 默认实现        
+
+    # Used for printing the output value; default implementation
     def truncate_output_value(self, value : any) :
         return value
     

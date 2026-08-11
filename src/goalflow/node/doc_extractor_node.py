@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 class DocExtractorNode(BaseNode):
     """
-    文档提取器节点
+    Document extractor node
     """
 
     """
@@ -52,7 +52,7 @@ class DocExtractorNode(BaseNode):
         self.variable_selector = variable_selector
 
     def call(self, state: GenericState) -> NodeOutput:
-        # 查询文件列表
+        # Query the file list
         value = VariableResolver.resolve_value_selector(self.variable_selector, state)
         text = []
         try:
@@ -257,7 +257,7 @@ def _extract_text_from_doc(file_content: bytes) -> str:
     """
     from unstructured.partition.api import partition_via_api
 
-    # TODO 使用unstructured提取text
+    # TODO extract text using unstructured
     try:
         with tempfile.NamedTemporaryFile(suffix=".doc", delete=False) as temp_file:
             temp_file.write(file_content)

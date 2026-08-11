@@ -1,6 +1,6 @@
 """
-HITL Review 数据库模型和操作类
-用于存储 HITL 审核记录
+HITL Review database model and operations class
+Used to store HITL review records
 """
 
 from datetime import datetime
@@ -27,14 +27,14 @@ Base = declarative_base()
 
 
 class HITLReview(Base):
-    """HITL 审核记录表"""
+    """HITL review record table"""
 
     __tablename__ = "wf_hitl_review"
 
-    # 主键
+    # Primary key
     id = Column(BigInteger, primary_key=True, autoincrement=True)
 
-    # 审核标识
+    # Review identifiers
     review_id = Column(
         String(128), nullable=False, unique=True, index=True, comment="审核ID"
     )
@@ -45,10 +45,10 @@ class HITLReview(Base):
     checkpoint_name = Column(String(64), nullable=False, comment="checkpoint名称")
 
     thread_id = Column(String(100), nullable=False, comment="thread_id")
-    
+
     interrupt_id = Column(String(50), nullable=False, comment="中断ID")
 
-    # 审核状态
+    # Review status
     status = Column(
         String(32),
         nullable=False,
@@ -57,24 +57,24 @@ class HITLReview(Base):
         comment="状态: pending/approved/modified/rejected",
     )
 
-    # 审核数据
+    # Review data
     data = Column(JSON, nullable=False, comment="待审核数据（研究框架等）")
     modified_data = Column(JSON, nullable=True, comment="修改后的数据")
 
-    # 审核信息
+    # Review information
     action = Column(
         String(32), nullable=True, comment="审核动作: approve/modify/reject"
     )
 
     submitted_by = Column(VARCHAR(36), nullable=True, comment="审核人ID")
 
-    # 时间管理
+    # Time management
     created_at = Column(DateTime, nullable=False, comment="创建时间")
     expires_at = Column(DateTime, nullable=False, comment="过期时间")
     submitted_at = Column(DateTime, nullable=True, comment="提交时间")
     updated_at = Column(DateTime, nullable=False, comment="更新时间")
 
-    # 索引
+    # Indexes
     __table_args__ = (
         Index("idx_workflow_id", "workflow_id"),
         Index("idx_workflow_run_id", "workflow_run_id"),
@@ -113,18 +113,18 @@ class HITLReview(Base):
 
 
 class HITLReviewDB:
-    """HITL 审核数据库操作类"""
+    """HITL review database operations class"""
 
     @classmethod
     def create(cls, review: HITLReview) -> HITLReview:
         """
-        创建审核记录
+        Create a review record
 
         Args:
-            review: HITLReview 对象
+            review: HITLReview object
 
         Returns:
-            HITLReview: 创建后的对象（包含 ID）
+            HITLReview: the created object (including ID)
         """
         now = datetime.now()
         review.created_at = now
@@ -143,13 +143,13 @@ class HITLReviewDB:
     @classmethod
     def get_by_review_id(cls, review_id: str) -> Optional[HITLReview]:
         """
-        根据 review_id 查询审核记录
+        Query a review record by review_id
 
         Args:
-            review_id: 审核ID
+            review_id: review ID
 
         Returns:
-            Optional[HITLReview]: 审核记录或 None
+            Optional[HITLReview]: the review record or None
         """
         with Database.get_session() as session:
             review = (
@@ -166,13 +166,13 @@ class HITLReviewDB:
     @classmethod
     def get_pending_by_workflow_run_id(cls, workflow_run_id: str) -> List[HITLReview]:
         """
-        获取工作流的待审核记录
+        Get the pending review records of a workflow
 
         Args:
-            workflow_run_id: 工作流运行ID
+            workflow_run_id: workflow run ID
 
         Returns:
-            List[HITLReview]: 待审核记录列表
+            List[HITLReview]: list of pending review records
         """
         with Database.get_session() as session:
             reviews = (
@@ -193,13 +193,13 @@ class HITLReviewDB:
     @classmethod
     def get_all_by_workflow_run_id(cls, workflow_run_id: str) -> List[HITLReview]:
         """
-        获取工作流的所有审核记录（包括已完成的）
+        Get all review records of a workflow (including completed ones)
 
         Args:
-            workflow_run_id: 工作流运行ID
+            workflow_run_id: workflow run ID
 
         Returns:
-            List[HITLReview]: 审核记录列表
+            List[HITLReview]: list of review records
         """
         with Database.get_session() as session:
             reviews = (
@@ -224,17 +224,17 @@ class HITLReviewDB:
         submitted_by: Optional[str] = None,
     ) -> bool:
         """
-        更新审核状态
+        Update the review status
 
         Args:
-            review_id: 审核ID
-            status: 新状态
-            action: 审核动作
-            modified_data: 修改后的数据
-            submitted_by: 审核人ID
+            review_id: review ID
+            status: new status
+            action: review action
+            modified_data: modified data
+            submitted_by: reviewer ID
 
         Returns:
-            bool: 是否更新成功
+            bool: whether the update succeeded
         """
         with Database.get_session() as session:
             update_data = {"status": status, "updated_at": datetime.now()}
@@ -246,7 +246,7 @@ class HITLReviewDB:
             if submitted_by:
                 update_data["submitted_by"] = submitted_by
 
-            # 如果是最终状态，记录提交时间
+            # If it is a final status, record the submission time
             if status in ["approved", "modified", "rejected"]:
                 update_data["submitted_at"] = datetime.now()
 
@@ -266,10 +266,10 @@ class HITLReviewDB:
     @classmethod
     def cleanup_expired(cls) -> int:
         """
-        清理过期的 pending 记录
+        Clean up expired pending records
 
         Returns:
-            int: 清理的记录数量
+            int: the number of records cleaned up
         """
         with Database.get_session() as session:
             count = (
@@ -289,13 +289,13 @@ class HITLReviewDB:
     @classmethod
     def get_by_id(cls, id: int) -> Optional[HITLReview]:
         """
-        根据 ID 查询审核记录
+        Query a review record by ID
 
         Args:
-            id: 记录ID
+            id: record ID
 
         Returns:
-            Optional[HITLReview]: 审核记录或 None
+            Optional[HITLReview]: the review record or None
         """
         with Database.get_session() as session:
             review = session.query(HITLReview).filter(HITLReview.id == id).first()
@@ -311,7 +311,7 @@ class HITLReviewDB:
         review_id: str,
         interrupt_id: Optional[str] = None,
     ) -> bool:
-        """更新中断ID"""
+        """Update the interrupt ID"""
         with Database.get_session() as session:
             update_fields = {"interrupt_id": interrupt_id}
 

@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 
 class MessageService:
     """
-    消息服务
+    Message service
     """
 
     @staticmethod
@@ -41,7 +41,7 @@ class MessageService:
         conversation_id: str,
     ) -> List[Dict[str, str]]:
         """
-        获取会话历史记录，缓存格式
+        Get the conversation history, in cache format
         """
         return MessageCache.get_llm_template_by_conversation_id(
             conversation_id=conversation_id

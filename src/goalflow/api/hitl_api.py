@@ -1,6 +1,6 @@
 """
-HITL (Human-in-the-Loop) API 接口
-提供 HTTP REST API 供外部系统提交审核和恢复工作流
+HITL (Human-in-the-Loop) API interface
+Provides an HTTP REST API for external systems to submit reviews and resume workflows
 """
 
 from fastapi import APIRouter, HTTPException, status,Depends, Request
@@ -28,65 +28,65 @@ from goalflow.config import get_logger
 
 logger = get_logger(__name__)
 
-# 创建路由
+# Create router
 router = APIRouter(prefix="/api/v1/hitl", tags=["HITL"])
 
 
 # ==================== Pydantic Models ====================
 
 class ApproveInputs(BaseModel):
-    """批准审核输入参数"""
+    """Approve review input parameters"""
     review_id: str = Field(..., description="审核ID")
     submitted_by: Optional[str] = Field(None, description="审核人ID")
 
 
 class ApproveRequest(BaseModel):
-    """批准审核请求"""
+    """Approve review request"""
     inputs: ApproveInputs = Field(..., description="输入参数")
 
 
 class ModifyInputs(BaseModel):
-    """修改后批准输入参数"""
+    """Approve-after-modification input parameters"""
     review_id: str = Field(..., description="审核ID")
     modified_data: Dict[str, Any] = Field(..., description="修改后的数据")
     submitted_by: Optional[str] = Field(None, description="审核人ID")
 
 
 class ModifyRequest(BaseModel):
-    """修改后批准请求"""
+    """Approve-after-modification request"""
     inputs: ModifyInputs = Field(..., description="输入参数")
 
 
 class RejectInputs(BaseModel):
-    """拒绝审核输入参数"""
+    """Reject review input parameters"""
     review_id: str = Field(..., description="审核ID")
     submitted_by: Optional[str] = Field(None, description="审核人ID")
 
 
 class RejectRequest(BaseModel):
-    """拒绝审核请求"""
+    """Reject review request"""
     inputs: RejectInputs = Field(..., description="输入参数")
 
 
 class ResumeInputs(BaseModel):
-    """恢复工作流输入参数"""
+    """Resume workflow input parameters"""
     review_id: str = Field(..., description="审核ID")
 
 
 class ResumeRequest(BaseModel):
-    """恢复工作流请求"""
+    """Resume workflow request"""
     inputs: ResumeInputs = Field(..., description="输入参数")
 
 
 class ReviewResponse(BaseModel):
-    """审核响应"""
+    """Review response"""
     status: str
     message: str
     review_id: str
     workflow_run_id: Optional[str] = None
-    
+
 class StreamReviewChunk(BaseModel):
-    """流式审核数据块"""
+    """Streaming review data chunk"""
     review_id: str
     #status: str
     data: Dict[str, Any]
@@ -101,13 +101,13 @@ def get_review(
         workflow: BaseWorkflow = Depends(validate_token_and_get_wf)
     ) -> Dict[str, Any]:
     """
-    查询审核详情
-    
+    Query review details
+
     Args:
-        review_id: 审核ID
-        
+        review_id: review ID
+
     Returns:
-        审核详情
+        review details
     """
     try:
         review = WorkflowHitlService(workflow).get_review(review_id)
@@ -136,13 +136,13 @@ def get_workflow_reviews(
         workflow: BaseWorkflow = Depends(validate_token_and_get_wf)
     ) -> Dict[str, Any]:
     """
-    查询工作流的所有审核
-    
+    Query all reviews of a workflow
+
     Args:
-        workflow_run_id: 工作流运行ID
-        
+        workflow_run_id: workflow run ID
+
     Returns:
-        审核列表
+        review list
     """
     try:
         reviews = WorkflowHitlService(workflow).get_all_reviews(workflow_run_id)
@@ -168,14 +168,14 @@ def approve_review(
     workflow: BaseWorkflow = Depends(validate_token_and_get_wf)
 ) :
     """
-    批准审核
-    
+    Approve review
+
     Args:
-        request: HTTP 请求
-        request_body: 批准请求体（包含 review_id）
-        
+        request: HTTP request
+        request_body: approve request body (contains review_id)
+
     Returns:
-        审核响应
+        review response
     """
     request_id = request.headers.get(WF_REQUEST_ID_HEADER_NAME)
     if request_id is None:
@@ -188,14 +188,14 @@ def approve_review(
     
     hitl_service = WorkflowHitlService(workflow)
     try:
-        # 获取审核信息
+        # Get review information
         review = hitl_service.get_review(review_id)
         if not review:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Review {review_id} not found"
             )
-        
+
         workflow_run_id = review.get("workflow_run_id")
         if not workflow_run_id:
             raise HTTPException(
@@ -205,24 +205,24 @@ def approve_review(
         init_state = {
             "sys_workflow_run_id": workflow_run_id,
             "request_id" : request_id
-            
+
         }
-        # 提交批准
+        # Submit approval
         response_generator = hitl_service.approve(
             review_id=review_id,
             submitted_by=request_body.inputs.submitted_by,
             init_state=init_state
         )
-        
+
         # if not success:
         #     raise HTTPException(
         #         status_code=status.HTTP_400_BAD_REQUEST,
         #         detail="Failed to approve review"
         #     )
-        
+
         # logger.info(f"Review {review_id} approved successfully")
-        
-        # # 触发工作流恢复（如果需要）
+
+        # # Trigger workflow resume (if needed)
         # workflow_run_id = review.get("workflow_run_id")
         # try:
         #     from workflow.hitl_resume import resume_workflow_after_hitl
@@ -230,7 +230,7 @@ def approve_review(
         #     logger.info(f"Workflow {workflow_run_id} resumed after approval")
         # except Exception as e:
         #     logger.warning(f"Failed to auto-resume workflow: {e}")
-        #     # 不影响主流程，继续返回成功
+        #     # Does not affect the main flow, continue returning success
         
         # return ReviewResponse(
         #     status="approve",
@@ -265,14 +265,14 @@ def modify_review(
     workflow: BaseWorkflow = Depends(validate_token_and_get_wf)
 ):
     """
-    修改后批准
-    
+    Approve after modification
+
     Args:
-        request_http: HTTP 请求
-        request: 修改请求（包含 inputs.review_id）
-        
+        request_http: HTTP request
+        request: modify request (contains inputs.review_id)
+
     Returns:
-        流式响应
+        streaming response
     """
     request_id = request_http.headers.get(WF_REQUEST_ID_HEADER_NAME)
     if request_id is None:
@@ -285,27 +285,27 @@ def modify_review(
     
     hitl_service = WorkflowHitlService(workflow)
     try:
-        # 获取审核信息
+        # Get review information
         review = hitl_service.get_review(review_id)
         if not review:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Review {review_id} not found"
             )
-        
+
         workflow_run_id = review.get("workflow_run_id")
         if not workflow_run_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Review does not have a workflow run ID"
             )
-        
+
         init_state = {
             "sys_workflow_run_id": workflow_run_id,
             "request_id": request_id
         }
-        
-        # 提交修改（注意：modify 返回的是生成器）
+
+        # Submit modification (note: modify returns a generator)
         response_generator = hitl_service.modify(
             review_id=review_id,
             modified_data=request.inputs.modified_data,
@@ -342,14 +342,14 @@ def reject_review(
     workflow: BaseWorkflow = Depends(validate_token_and_get_wf)
 ) -> ReviewResponse:
     """
-    拒绝审核（工作流将直接终止，不返回流式输出）
-    
+    Reject review (the workflow will terminate directly, no streaming output returned)
+
     Args:
-        request_http: HTTP 请求
-        request: 拒绝请求（包含 inputs.review_id）
-        
+        request_http: HTTP request
+        request: reject request (contains inputs.review_id)
+
     Returns:
-        审核响应
+        review response
     """
     request_id = request_http.headers.get(WF_REQUEST_ID_HEADER_NAME)
     if request_id is None:
@@ -362,34 +362,34 @@ def reject_review(
     
     hitl_service = WorkflowHitlService(workflow)
     try:
-        # 获取审核信息
+        # Get review information
         review = hitl_service.get_review(review_id)
         if not review:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Review {review_id} not found"
             )
-        
+
         workflow_run_id = review.get("workflow_run_id")
         if not workflow_run_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Review does not have a workflow run ID"
             )
-        
+
         init_state = {
             "sys_workflow_run_id": workflow_run_id,
             "request_id": request_id
         }
-        
-        # 提交拒绝（注意：reject 会直接终止工作流，收集生成器即可）
+
+        # Submit rejection (note: reject terminates the workflow directly, just collect the generator)
         response_generator = hitl_service.reject(
             review_id=review_id,
             submitted_by=request.inputs.submitted_by,
             init_state=init_state
         )
-        
-        # 消费生成器（主要是终止事件）
+
+        # Consume the generator (mainly the termination event)
         response_chunks = list(response_generator)
         
         logger.info(f"Review {review_id} rejected, workflow terminated with {len(response_chunks)} events")
@@ -424,33 +424,33 @@ def resume_workflow(
     workflow: BaseWorkflow = Depends(validate_token_and_get_wf)
 ) -> Dict[str, Any]:
     """
-    手动恢复工作流
-    
+    Manually resume workflow
+
     Args:
-        workflow_run_id: 工作流运行ID
-        request: 恢复请求（包含 inputs.review_id）
-        
+        workflow_run_id: workflow run ID
+        request: resume request (contains inputs.review_id)
+
     Returns:
-        恢复结果
+        resume result
     """
     try:
         review_id = request.inputs.review_id
-        
-        # 验证审核是否已完成
+
+        # Verify whether the review has been completed
         review = WorkflowHitlService(workflow).get_review(review_id)
         if not review:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Review {review_id} not found"
             )
-        
+
         if review["status"] == "pending":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Review is still pending, cannot resume workflow"
             )
-        
-        # 恢复工作流
+
+        # Resume the workflow
         from goalflow.workflow.hitl_resume import resume_workflow_after_hitl
         result = resume_workflow_after_hitl(workflow_run_id, review_id)
         
@@ -476,7 +476,7 @@ def resume_workflow(
 
 @router.get("/health", summary="健康检查")
 def health_check():
-    """HITL API 健康检查"""
+    """HITL API health check"""
     return {
         "status": "healthy",
         "service": "HITL API",

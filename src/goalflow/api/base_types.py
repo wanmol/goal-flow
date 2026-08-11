@@ -84,13 +84,13 @@ class ChatCompletionBlockingResponse(BaseModel):
     
     
     
-#=========================以下是为了大模型应用备案使用约定的接口格式====================================
+#=========================Below is the interface format agreed upon for LLM application filing====================================
 class ChatCompletionRequestMessagePart(BaseModel):
     """Input model for chat completion message part."""
     role: Literal["user", "model", "system"] = Field(..., description="角色")
     content: str = Field(..., description="内容")
-    
-# 请求参数是openai格式， 相应格式可以自定义，默认也是openai格式
+
+# Request params are in openai format; the response format can be customized, defaulting to openai format too
 class ChatCompletionRequest(BaseModel):
     """Input model for chat completion."""
     model: str = Field("", description="模型名称")
@@ -100,8 +100,8 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: Optional[int] = Field(default=4000, description="最大token数")
     user: Optional[str] = Field(default="openai_canonical_general_user", description="用户ID")
     response_format: Optional[str] = Field(default="openai", description="响应格式")
-    
-# 新增图像生成请求模型
+
+# Added image generation request model
 class ImageGenerationRequest(BaseModel):
     """Image generation request model."""
     dialogue: List[ChatCompletionRequestMessagePart] = Field(..., description="对话列表")
@@ -109,16 +109,16 @@ class ImageGenerationRequest(BaseModel):
     negative_prompt: Optional[str] = Field(default="", description="负面提示词")
 
 
-# 新增图像生成响应模型
+# Added image generation response model
 class ImageGenerationResponse(BaseModel):
     """Image generation response model."""
     status: str = Field(..., description="状态")
     reason: str = Field(..., description="原因")
     content: str = Field(..., description="生成的图像URL")
-    
-    
+
+
 class ChatCompletionRequestMessageRole(Enum):
     """Chat completion request message role enum."""
     USER = "user"
     MODEL = "model"
-#=========================以上是为了大模型应用备案使用约定的接口格式====================================
+#=========================Above is the interface format agreed upon for LLM application filing====================================

@@ -26,7 +26,7 @@ class DifyDependenciesNode:
     
 class DifyWorkflow:
     """
-    Dify 工作流定义
+    Dify workflow definition
     """
     __slots__ = [
         "nodes", 

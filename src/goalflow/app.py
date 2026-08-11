@@ -122,37 +122,37 @@ class StreamChunk(BaseModel):
     
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 加载环境变量
+    # Load environment variables
     load_env()
 
-    # 初始化MySQL连接池
+    # Initialize the MySQL connection pool
     Database.init()
-    # 初始化Redis连接池（可选）
+    # Initialize the Redis connection pool (optional)
     RedisClusterManager.init_cluster()
 
-    # 加载中间件检查
+    # Load middleware checks
     middle_health_check()
-    
-    # 初始化内存监控
+
+    # Initialize memory monitoring
     monitor = init_memory_monitor("MyFastAPIApp")
-    
-    # 启动后台监控线程（每10秒采集一次）
+
+    # Start the background monitoring thread (collects once every 10 seconds)
     monitor.start_background_monitoring(interval=10)
-    
-    # 定期检查内存泄漏（每5分钟）
+
+    # Periodically check for memory leaks (every 5 minutes)
     import threading
-    
+
     def periodic_leak_check():
         while True:
             try:
                 report = monitor.analyze_leak()
                 if report.get("leak_detected"):
-                    # 这里可以发送警报，如邮件、Slack等
+                    # An alert can be sent here, e.g. email, Slack, etc.
                     print(f"🚨 内存泄漏警报: {report}")
             except Exception as e:
                 print(f"泄漏检查失败: {e}")
-            
-            # 每5分钟检查一次
+
+            # Check once every 5 minutes
             threading.Event().wait(300)
     
     leak_check_thread = threading.Thread(
@@ -168,7 +168,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         logger.info("释放资源...")
-        # 同步清理操作
+        # Synchronous cleanup operations
         Database.close()
         RedisClusterManager.close()
         monitor.stop_monitoring()
@@ -191,7 +191,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 添加内存监控中间件
+# Add memory monitoring middleware
 app.add_middleware(MemoryMonitoringMiddleware)
 
 # Register HITL API router
@@ -200,7 +200,7 @@ app.include_router(hitl_router)
 # Register Report API router
 app.include_router(report_router)
 
-# 注册内存监控路由
+# Register memory monitoring routes
 app.include_router(memory_router)
 app.include_router(memory_router_accurate)
 
@@ -253,7 +253,7 @@ def prepare_state_from_chat_completion_request(chat_completion_request: ChatComp
         "sys_scene_type": "OPENAPI",
         "sys_openai_param": True,
         "sys_conversation_id": None,
-        #TODO  先写死， 需要考虑以什么形式传递过来
+        #TODO  hardcoded for now; need to consider in what form it will be passed in
         "input_variables": {"networkFlag":1,"deepThinkFlag":1}
     }
 
@@ -284,7 +284,7 @@ async def health_check():
         raise HTTPException(status_code=500, detail=f"Service unhealthy: {str(e)}")
 
 
-# 中间件检查  当前有mysql 和 redis
+# Middleware check; currently mysql and redis
 @app.get("/middle_health")
 def middle_health_check():
     from goalflow.infra.database import Database
@@ -344,7 +344,7 @@ def execute_workflow(
     # use without langgraph execution environment
     request_id_ctx.set(request_id)
 
-    # 从上游调用传递过来的trace_id, span_id
+    # trace_id, span_id passed in from the upstream call
     upstream_trace_id = request.headers.get(UPSTREAM_TRACE_ID_HEADER_NAME)
     upstream_span_id = request.headers.get(UPSTREAM_SPAN_ID_HEADER_NAME)
     if upstream_trace_id and upstream_span_id:
@@ -359,12 +359,12 @@ def execute_workflow(
 
     user_id = workflow_input.user
 
-    # 构造脱敏后的日志参数
+    # Construct the desensitized log parameters
     # log_input = workflow_input.model_dump(exclude={"inputs": {"financial_data"}})
     # logger.info("workflow request start", request_param=log_input)
     logger.info("workflow request start", request_param=workflow_input)
 
-    # workflow的模型输出模式的是非流式输出
+    # workflow's model output mode is non-streaming output
     response_mode = workflow_input.response_mode or RESPONSE_MODE_BLOCKING
     # Prepare initial state
     initial_state = prepare_initial_state(workflow_input)
@@ -372,7 +372,7 @@ def execute_workflow(
 
     # use with langgraph execution environment through var_child_runnable_config
     initial_state["request_id"] = request_id
-    # 将 trace_id 和 parent_span_id 存储到 node_span_ids["trace_context"] 中
+    # Store trace_id and parent_span_id in node_span_ids["trace_context"]
     if "node_span_ids" not in initial_state:
         initial_state["node_span_ids"] = {}
     if "trace_context" not in initial_state["node_span_ids"]:
@@ -471,7 +471,7 @@ def chat_messages(
     # use without langgraph execution environment
     request_id_ctx.set(request_id)
 
-    # 从上游调用传递过来的trace_id, span_id
+    # trace_id, span_id passed in from the upstream call
     upstream_trace_id = request.headers.get(UPSTREAM_TRACE_ID_HEADER_NAME)
     upstream_span_id = request.headers.get(UPSTREAM_SPAN_ID_HEADER_NAME)
 
@@ -491,7 +491,7 @@ def chat_messages(
 
     workflow_run_id = str(uuid.uuid4())
 
-    # 构造脱敏后的日志参数
+    # Construct the desensitized log parameters
     # log_input = workflow_input.model_dump(exclude={"inputs": {"financial_data"}})
     # logger.info("chatflow request start", request_param=log_input)
     logger.info("chatflow request start", request_param=workflow_input)
@@ -503,7 +503,7 @@ def chat_messages(
 
     # use with langgraph execution environment through var_child_runnable_config
     initial_state["request_id"] = request_id
-    # 将 trace_id 和 parent_span_id 存储到 node_span_ids["trace_context"] 中
+    # Store trace_id and parent_span_id in node_span_ids["trace_context"]
     if "node_span_ids" not in initial_state:
         initial_state["node_span_ids"] = {}
     if "trace_context" not in initial_state["node_span_ids"]:
@@ -590,19 +590,19 @@ def state_validation_error_handler(request, exc: StateValidationError):
 
 def _extract_json_from_markdown(content: str) -> str:
     """
-    从 markdown 代码块中提取 JSON 内容
-    支持格式: ```json\n...\n``` 或 ```\n...\n``` 或纯 JSON
+    Extract JSON content from a markdown code block
+    Supported formats: ```json\n...\n``` or ```\n...\n``` or plain JSON
     """
     content = content.strip()
 
-    # 检查是否有 markdown 代码块标记
+    # Check whether there is a markdown code block marker
     if content.startswith("```"):
-        # 移除开头的 ```json 或 ```
+        # Remove the leading ```json or ```
         lines = content.split("\n")
-        # 移除第一行的代码块标记
+        # Remove the code block marker on the first line
         if lines[0].startswith("```"):
             lines = lines[1:]
-        # 移除最后一行的代码块标记
+        # Remove the code block marker on the last line
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
         content = "\n".join(lines).strip()
@@ -613,7 +613,7 @@ def _extract_json_from_markdown(content: str) -> str:
 @app.post("/v1/messages/{message_id}/suggested")
 def get_message_suggested(user: str, message_id: str,request_body:dict={}):
     """
-    获取下一轮建议问题列表
+    Get the list of suggested questions for the next round
     """
     if not user:
         raise ValueError("user cannot be None")
@@ -667,7 +667,7 @@ def get_message_suggested(user: str, message_id: str,request_body:dict={}):
 @app.get("/v1/messages/{message_id}/suggested")
 def get_message_suggested2(user: str, message_id: str):
     """
-    获取下一轮建议问题列表
+    Get the list of suggested questions for the next round
     """
     if not user:
         raise ValueError("user cannot be None")
@@ -693,7 +693,7 @@ def get_message_suggested2(user: str, message_id: str):
             )
             response = client.invoke(prompt_template)
             if response and response.content is not None:
-                # 清理 markdown 代码块格式，然后解析 JSON
+                # Clean up the markdown code block formatting, then parse JSON
                 cleaned_content = _extract_json_from_markdown(response.content)
                 questions = json.loads(cleaned_content)
     return {"result": "success", "data": questions}
@@ -701,27 +701,27 @@ def get_message_suggested2(user: str, message_id: str):
 @app.get("/memory-intensive")
 async def memory_intensive():
     """
-    内存密集型操作，用于测试监控
+    Memory-intensive operation, used for testing monitoring
     """
     monitor = get_memory_monitor()
-    
-    # 记录操作开始
+
+    # Record the start of the operation
     monitor.snapshot("memory_intensive_start")
-    
-    # 创建大量对象
+
+    # Create a large number of objects
     data = []
     for i in range(100000):
         data.append(f"string_{i}" * 10)
-    
-    # 记录操作中间状态
+
+    # Record the intermediate state of the operation
     monitor.snapshot("memory_intensive_middle")
-    
-    # 清理部分数据
+
+    # Clean up part of the data
     del data[50000:]
-    
-    # 记录操作结束
+
+    # Record the end of the operation
     monitor.snapshot("memory_intensive_end")
-    
+
     return {
         "message": "内存密集型操作完成",
         "remaining_items": len(data)

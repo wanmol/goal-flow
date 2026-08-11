@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def _extract_current_user_message(messages: list[Any]) -> HumanMessage | None:
-    """取本轮 invoke 注入的用户消息（进入 before_agent 时位于 messages 末尾）。"""
+    """Take the user message injected by this turn's invoke (located at the tail of messages on entering before_agent)."""
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
             return msg
@@ -40,7 +40,7 @@ def merge_context_messages(
     context_messages: list[Any],
     existing_messages: list[Any],
 ) -> dict[str, Any]:
-    """将上下文消息与本轮 user query 合并为 ``[context..., current_query]``。"""
+    """Merge context messages with this turn's user query into ``[context..., current_query]``."""
     current_user_msg = _extract_current_user_message(existing_messages)
     ordered: list[Any] = [RemoveMessage(id=REMOVE_ALL_MESSAGES), *context_messages]
     if current_user_msg is not None:
@@ -51,19 +51,19 @@ def merge_context_messages(
 
 class ContextMiddleware(AgentMiddleware[ContextAgentState, ContextT, ResponseT]):
     """
-    Agent 上下文中间件：执行前注入上下文，执行后可保存本轮问答。
+    Agent context middleware: inject context before execution, optionally save this turn's Q&A after execution.
 
-    上下文通过 ``ContextManager`` 插件注入；默认 ``ConversationHistoryContextManager``。
+    Context is injected via the ``ContextManager`` plugin; defaults to ``ConversationHistoryContextManager``.
 
-    用法::
+    Usage::
 
         ContextMiddleware()
         ContextMiddleware(manager=MyContextManager())
         ContextMiddleware(manager=lambda state, runtime: [...])
         ContextMiddleware(save_turn=True)
 
-    ``save_turn``（默认 ``False``）控制是否在 ``after_agent`` 持久化本轮 query + 最终 reply；
-    也可在 ``runtime.context.save_context_turn`` 覆盖。中间 agent loop 的 tool 消息不会写入。
+    ``save_turn`` (default ``False``) controls whether ``after_agent`` persists this turn's query + final reply;
+    it can also be overridden via ``runtime.context.save_context_turn``. Intermediate agent-loop tool messages are not written.
     """
 
     def __init__(
@@ -74,7 +74,7 @@ class ContextMiddleware(AgentMiddleware[ContextAgentState, ContextT, ResponseT])
         save_turn: bool = False,
         default_history_window_size: int = 20,
     ):
-        # extractor 为旧参数名，优先 manager
+        # extractor is the legacy parameter name; manager takes priority
         resolved = manager if manager is not None else extractor
         self._manager = resolve_context_manager(
             resolved,

@@ -1,5 +1,5 @@
-"""agent_kit：跨形态 Agent 工具箱 + Harness 治理底座。"""
-# ── 老 API（继续可用，由 P2 加了 DeprecationWarning） ──────────────
+"""agent_kit: cross-form Agent toolkit + Harness governance foundation."""
+# ── Legacy API (still usable; P2 added a DeprecationWarning) ──────────────
 from agent_kit.runtimes.base import AgentRuntime, AgentResult, classify_error
 from agent_kit.runtimes.deep_agent import DeepAgentRuntime
 from agent_kit.runtimes.create_agent import CreateAgentRuntime
@@ -41,7 +41,7 @@ from agent_kit.harness.middleware import (
 )
 from agent_kit.integrations import HarnessBacked
 
-# ── 新 API（P3，ADR-003） ────────────────────────────────────────
+# ── New API (P3, ADR-003) ────────────────────────────────────────
 from agent_kit.agent import Agent
 from agent_kit.harness.harness import Harness, default_harness
 from agent_kit.graphs import (
@@ -62,7 +62,7 @@ from agent_kit.stores import ConversationStore, MessageServiceStore
 from agent_kit.tools import InjectedAgentOutput, InjectedState
 
 __all__ = [
-    # ── 老 API ───────────────────────────────────────
+    # ── Legacy API ───────────────────────────────────────
     "AgentRuntime",
     "AgentResult",
     "classify_error",
@@ -101,7 +101,7 @@ __all__ = [
     "make_dynamic_prompt_middleware",
     "DEFAULT_FALLBACK_PROMPT",
     "PromptSource",
-    # ── 新 API（P3，ADR-003） ────────────────────────
+    # ── New API (P3, ADR-003) ────────────────────────
     "Agent",
     "Harness",
     "default_harness",

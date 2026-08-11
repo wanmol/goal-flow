@@ -1,8 +1,8 @@
-"""MessageServiceStore：基于宿主仓库 ``MessageService`` 的 ConversationStore 实现。
+"""MessageServiceStore: a ConversationStore implementation based on the host repo's ``MessageService``.
 
-设计意图：替代 ``harness/middleware/context_manager.py:ConversationHistoryContextManager``，
-迁入 ``stores/`` 与 ``ConversationHistoryMiddleware`` 配对。老
-``ConversationHistoryContextManager`` 暂保留，内部委派给本实现，逐步替换。
+Design intent: replaces ``harness/middleware/context_manager.py:ConversationHistoryContextManager``,
+moved into ``stores/`` and paired with ``ConversationHistoryMiddleware``. The old
+``ConversationHistoryContextManager`` is kept for now, internally delegating to this implementation, replaced gradually.
 """
 from __future__ import annotations
 
@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 
 
 class MessageServiceStore(ConversationStore):
-    """基于宿主仓库 ``service.message_service.MessageService`` 的实现。
+    """Implementation based on the host repo's ``service.message_service.MessageService``.
 
-    构造参数：
-    - ``default_scene_type``：``save_turn`` 时 meta 没传 ``scene_type`` 时的默认值
-    - ``user_id_field``：从 meta 取 ``creator_id`` / ``last_updater_id`` 的 key 名
+    Constructor parameters:
+    - ``default_scene_type``: the default value when meta does not pass ``scene_type`` during ``save_turn``
+    - ``user_id_field``: the key name used to get ``creator_id`` / ``last_updater_id`` from meta
 
-    要求宿主仓库的 ``service.message_service.MessageService`` 已经可 import；
-    不可用时构造期不报错，调用 ``load_history`` / ``save_turn`` 才报。
+    Requires the host repo's ``service.message_service.MessageService`` to be importable;
+    when unavailable, no error at construction time -- it only errors when calling ``load_history`` / ``save_turn``.
     """
 
     def __init__(

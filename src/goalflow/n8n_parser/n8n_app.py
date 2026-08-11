@@ -1,9 +1,9 @@
-"""N8nWorkflow：解析后的 n8n 工作流内存模型。
+"""N8nWorkflow: the in-memory model of a parsed n8n workflow.
 
-职责：
-- 持有节点列表 + name↔id 映射（n8n connections 用名称，goalflow 图用 id）
-- 把 n8n 的 connections{} 展开成扁平的 N8nEdge 列表
-- 检测起始（trigger）节点
+Responsibilities:
+- Holds the node list + name↔id mapping (n8n connections use names, the goalflow graph uses ids)
+- Expands n8n's connections{} into a flat list of N8nEdge
+- Detects the start (trigger) node
 """
 from __future__ import annotations
 
@@ -14,11 +14,11 @@ from goalflow.n8n_parser.n8n_types import N8nNode
 
 
 class N8nEdge:
-    """一条从源节点到目标节点的有向边。
+    """A directed edge from a source node to a target node.
 
-    - ``source`` / ``target`` 为节点 id（已从 n8n 的名称解析而来）
-    - ``source_output_index``：n8n main 输出的索引（IF 节点 0=true,1=false）
-    - ``source_output_type``：n8n 连接类型（main / ai_tool / ai_languageModel ...）
+    - ``source`` / ``target`` are node ids (already resolved from n8n's names)
+    - ``source_output_index``: the index of the n8n main output (for IF nodes 0=true, 1=false)
+    - ``source_output_type``: the n8n connection type (main / ai_tool / ai_languageModel ...)
     """
 
     __slots__ = [
@@ -45,7 +45,7 @@ class N8nEdge:
         self.target_input_index = target_input_index
 
 
-# n8n trigger 节点的短类型名。出现其一即视为工作流入口。
+# Short type names of n8n trigger nodes. If any appears, it is treated as a workflow entry point.
 N8N_TRIGGER_SHORT_TYPES = {
     "start",
     "manualTrigger",
@@ -61,7 +61,7 @@ N8N_TRIGGER_SHORT_TYPES = {
 
 
 class N8nWorkflow:
-    """n8n 工作流的内存模型。"""
+    """The in-memory model of an n8n workflow."""
 
     def __init__(self, *, name: str = "", nodes: Optional[List[N8nNode]] = None):
         self.name = name
@@ -104,11 +104,11 @@ class N8nWorkflow:
         return node.short_type in N8N_TRIGGER_SHORT_TYPES
 
     def init_graph_data(self):
-        """构建 name↔id 映射并检测起始节点。
+        """Build the name↔id mapping and detect the start node.
 
-        起始节点选取规则：
-        1. 优先取第一个 trigger 类型节点；
-        2. 没有 trigger 时，取没有入边的第一个节点（源节点）。
+        Start node selection rules:
+        1. Prefer the first trigger-type node;
+        2. If there is no trigger, take the first node with no incoming edges (a source node).
         """
         self.node_by_name = {}
         self.node_by_id = {}
@@ -117,13 +117,13 @@ class N8nWorkflow:
             self.node_by_name[node.name] = node
             self.node_by_id[node.id] = node
 
-        # 起始节点检测：先找 trigger
+        # Start node detection: look for a trigger first
         for node in self.nodes:
             if self.is_trigger(node):
                 self.start_node_id = node.id
                 break
 
-        # 没有 trigger：找没有入边的节点
+        # No trigger: find a node with no incoming edges
         if self.start_node_id is None:
             targets = {edge.target for edge in self.edges}
             for node in self.nodes:
@@ -131,6 +131,6 @@ class N8nWorkflow:
                     self.start_node_id = node.id
                     break
 
-        # 仍然没有（比如空图或全是环）：取第一个节点兜底
+        # Still none (e.g. an empty graph or all cycles): fall back to the first node
         if self.start_node_id is None and self.nodes:
             self.start_node_id = self.nodes[0].id

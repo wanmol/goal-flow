@@ -1,7 +1,7 @@
-"""沙盒代码执行：抽象执行器 + Dify 默认实现 + LangChain Tool 工厂。
+"""Sandbox code execution: abstract executor + Dify default implementation + LangChain Tool factory.
 
-``make_sandbox_tool()`` 返回的 ``BaseTool`` 可直接进 ``Agent(tools=[...])``；
-``DifySandboxExecutor`` 为默认实现，业务可继承 ``BaseSandboxExecutor`` 替换。
+The ``BaseTool`` returned by ``make_sandbox_tool()`` can go directly into ``Agent(tools=[...])``;
+``DifySandboxExecutor`` is the default implementation, and business code can subclass ``BaseSandboxExecutor`` to replace it.
 """
 from agent_kit.tools.sandbox.executor import (
     BaseSandboxExecutor,

@@ -1,13 +1,13 @@
-"""MetricsMiddleware：用 ``wrap_model_call`` 自动埋点延迟/计数。
+"""MetricsMiddleware: automatically instrument latency/counts via ``wrap_model_call``.
 
-设计意图：替代 ``AgentRuntime.run()`` 状态机里手写的 emit_counter / emit_histogram
-散点埋点。本中间件统一在 model 调用边界打：
+Design intent: replaces the hand-written, scattered emit_counter / emit_histogram instrumentation
+in the ``AgentRuntime.run()`` state machine. This middleware instruments uniformly at the model call boundary:
 
 - ``<prefix>.model_call_latency_ms`` (histogram, outcome=ok|error)
 - ``<prefix>.model_failed`` (counter, error_class=..., error_kind=...)
 
-依赖 ``Harness.tracer`` 的 ``counter()`` / ``histogram()`` 方法。
-Tracer 未配置 emitter 时降级为 noop。
+Depends on the ``counter()`` / ``histogram()`` methods of ``Harness.tracer``.
+Degrades to noop when the Tracer has no emitter configured.
 """
 from __future__ import annotations
 
@@ -30,10 +30,10 @@ logger = logging.getLogger(__name__)
 
 
 def _classify_error(error: BaseException) -> str:
-    """把异常归到 metric label：compliance / tool_json / network / other。
+    """Classify the exception into a metric label: compliance / tool_json / network / other.
 
-    与 ``agent_kit.runtimes.base.classify_error`` 同语义；为了避免循环依赖，
-    本模块独立实现。
+    Same semantics as ``agent_kit.runtimes.base.classify_error``; implemented independently in
+    this module to avoid a circular dependency.
     """
     text = str(error).lower()
     if not text:
@@ -56,11 +56,11 @@ def _classify_error(error: BaseException) -> str:
 
 
 class MetricsMiddleware(AgentMiddleware[ContextAgentState, ContextT, ResponseT]):
-    """围绕 model 调用自动埋点。
+    """Automatically instrument around the model call.
 
-    构造参数：
-    - ``harness``：``Harness`` 实例，从中读 ``tracer``
-    - ``prefix``：metric 命名空间前缀，默认 ``"agent"``。最终 metric 名形如
+    Constructor parameters:
+    - ``harness``: the ``Harness`` instance, from which ``tracer`` is read
+    - ``prefix``: metric namespace prefix, default ``"agent"``. Final metric names look like
       ``<prefix>.model_call_latency_ms`` / ``<prefix>.model_failed``
     """
 

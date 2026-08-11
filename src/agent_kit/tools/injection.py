@@ -1,7 +1,7 @@
-"""Tool 工具的便利注入助手。
+"""Convenience injection helpers for Tools.
 
-设计意图：替代 ``AgentRuntime.make_tool`` 用 ContextVar 注入 result 的老做法。
-推荐业务用 LangChain 原生 ``InjectedState`` / ``InjectedToolArg``：
+Design intent: replaces the old approach of ``AgentRuntime.make_tool`` injecting result via ContextVar.
+Business code is recommended to use LangChain's native ``InjectedState`` / ``InjectedToolArg``:
 
     from typing import Annotated
     from langchain_core.tools import tool, InjectedToolArg
@@ -12,26 +12,26 @@
         n: int,
         state: Annotated[dict, InjectedState],
     ) -> str:
-        '''加 n 到 state['agent_output'].counter.'''
+        '''Add n to state['agent_output'].counter.'''
         output = state.get("agent_output")
         output.counter += n
         return f"counter={output.counter}"
 
-本模块提供一个语义化的别名简化常见模式。
+This module provides a semantic alias to simplify the common pattern.
 """
 from __future__ import annotations
 
 from typing import Annotated, Any
 
-# 直接 re-export，业务可以从这里 import 而无需关心底层来自哪个包
+# Direct re-export, so business code can import from here without caring which underlying package it comes from
 from langgraph.prebuilt import InjectedState
 
 
 def InjectedAgentOutput() -> Any:
-    """便利助手：``Annotated[Any, InjectedState]`` 的语义化别名，强调
-    "从 state 注入 ``agent_output``" 这一常见模式。
+    """Convenience helper: a semantic alias for ``Annotated[Any, InjectedState]``, emphasizing
+    the common pattern of "injecting ``agent_output`` from state".
 
-    用法::
+    Usage::
 
         @tool
         def my_tool(
@@ -42,8 +42,8 @@ def InjectedAgentOutput() -> Any:
             output.counter += n
             return f"counter={output.counter}"
 
-    返回的是 LangChain ``InjectedState`` 标记，与原生 ``Annotated[dict, InjectedState]``
-    完全等价；只是别名更显意图。
+    Returns the LangChain ``InjectedState`` marker, fully equivalent to the native ``Annotated[dict, InjectedState]``;
+    the alias just makes the intent clearer.
     """
     return InjectedState
 

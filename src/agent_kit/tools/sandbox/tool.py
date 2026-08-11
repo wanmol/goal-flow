@@ -1,21 +1,21 @@
-"""把 ``BaseSandboxExecutor`` 封装为 LangChain ``BaseTool``。
+"""Wrap ``BaseSandboxExecutor`` as a LangChain ``BaseTool``.
 
-设计意图：代码执行是模型自主调用的能力（function calling），不是切面，因此包装为
-tool 而非 middleware。模型判断「需要执行代码才能得出结果」时才调用。
+Design intent: code execution is a capability the model invokes autonomously (function calling), not a cross-cutting concern, so it is wrapped as a
+tool rather than middleware. The model calls it only when it decides "code must be executed to get the result".
 
-适用场景（写进 tool description 引导模型）：
-- 数据分析与统计计算（pandas / numpy）
-- 数值计算与复杂公式（循环 / 条件 / 多步骤）
-- 格式转换（JSON 解析 / 数据整理）
-- 图表数据生成（输出数据，不出图——沙盒禁止绘图库）
-- 任何需要执行代码才能得出结果的任务
+Applicable scenarios (written into the tool description to guide the model):
+- Data analysis and statistical computation (pandas / numpy)
+- Numerical computation and complex formulas (loops / conditionals / multi-step)
+- Format conversion (JSON parsing / data wrangling)
+- Chart data generation (output data, no rendering — the sandbox forbids plotting libraries)
+- Any task that requires executing code to get the result
 
-用法::
+Usage::
 
     from agent_kit.tools.sandbox import make_sandbox_tool
 
-    agent = MyAgent(tools=[make_sandbox_tool()])              # 默认 Dify sandbox
-    agent = MyAgent(tools=[make_sandbox_tool(MyExecutor())])  # 自定义执行器
+    agent = MyAgent(tools=[make_sandbox_tool()])              # default Dify sandbox
+    agent = MyAgent(tools=[make_sandbox_tool(MyExecutor())])  # custom executor
 """
 from __future__ import annotations
 
@@ -41,10 +41,10 @@ _DEFAULT_DESCRIPTION = (
 
 
 def _format_result(success: bool, output: str, metadata: dict) -> str:
-    """把 ``(success, output, metadata)`` 渲染为给模型看的文本。
+    """Render ``(success, output, metadata)`` as text for the model to read.
 
-    成功直接返回 stdout；失败带上 exit_code 让模型能判断是「代码错」还是
-    「服务不可用」并据此纠正。
+    On success, return stdout directly; on failure, include exit_code so the model can tell whether it's a "code error"
+    or "service unavailable" and correct accordingly.
     """
     if success:
         return output or "[Sandbox] 代码执行成功，但没有任何 stdout 输出。请用 print() 输出结果。"
@@ -58,12 +58,12 @@ def make_sandbox_tool(
     name: str = _DEFAULT_TOOL_NAME,
     description: Optional[str] = None,
 ) -> Any:
-    """构造一个执行 Python 代码的 LangChain ``BaseTool``。
+    """Construct a LangChain ``BaseTool`` that executes Python code.
 
-    :param executor: ``BaseSandboxExecutor`` 实例；默认 ``DifySandboxExecutor()``
-    :param name: tool 名（LangChain function-calling 暴露的名字），默认 ``run_python_code``
-    :param description: 覆盖默认 description（默认已包含适用场景与约束说明）
-    :returns: LangChain ``BaseTool``，可直接传入 ``Agent(tools=[...])``
+    :param executor: a ``BaseSandboxExecutor`` instance; defaults to ``DifySandboxExecutor()``
+    :param name: tool name (the name exposed by LangChain function-calling), defaults to ``run_python_code``
+    :param description: overrides the default description (which already includes applicable scenarios and constraints)
+    :returns: a LangChain ``BaseTool``, which can be passed directly into ``Agent(tools=[...])``
     """
     from langchain_core.tools import StructuredTool
 
@@ -71,18 +71,18 @@ def make_sandbox_tool(
     desc = description or _DEFAULT_DESCRIPTION
 
     async def _arun(code: str) -> str:
-        """执行 Python 代码，返回 stdout（异步路径）。"""
+        """Execute Python code, returning stdout (async path)."""
         success, output, metadata = await ex.execute(code)
         return _format_result(success, output, metadata)
 
     def _run(code: str) -> str:
-        """执行 Python 代码，返回 stdout（同步路径，内部驱动 async executor）。"""
+        """Execute Python code, returning stdout (sync path, internally drives the async executor)."""
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            # 无运行中的事件循环 → 直接 asyncio.run
+            # No running event loop → run asyncio.run directly
             return asyncio.run(_arun(code))
-        # 已在事件循环里（罕见：同步 tool 在 async 上下文被调）→ 独立线程跑
+        # Already inside an event loop (rare: a sync tool called in an async context) → run in a separate thread
         import concurrent.futures
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:

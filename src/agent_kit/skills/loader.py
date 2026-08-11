@@ -1,9 +1,9 @@
-"""SkillLoader：按需加载 SKILL.md 的 markdown body（渐进披露第二阶段）。
+"""SkillLoader: load the SKILL.md markdown body on demand (progressive disclosure, stage two).
 
-不在 Registry 阶段读 body 的原因：
-- 当 skills 数量较多时，全量加载 body 会拖慢启动并占用内存
-- 大多数业务场景下，单次会话只触发少量 skill；按需读更合理
-- 与 Anthropic Agent Skills 规范的 progressive disclosure 模型一致
+Why the body is not read at the Registry stage:
+- When there are many skills, loading all bodies slows startup and consumes memory
+- In most business scenarios, a single session only triggers a few skills; loading on demand is more reasonable
+- Consistent with the progressive disclosure model of the Anthropic Agent Skills spec
 """
 from __future__ import annotations
 
@@ -18,17 +18,17 @@ logger = logging.getLogger(__name__)
 
 
 class SkillLoader:
-    """按 skill_id 加载完整 body。
+    """Load the full body by skill_id.
 
-    body 加载结果会写回 manifest.body 缓存；下次 ``load_body()`` 直接返回缓存。
-    单测/调试时调 ``invalidate(skill_id)`` 清缓存。
+    The loaded body is written back to the manifest.body cache; the next ``load_body()`` returns the cache directly.
+    In unit tests/debugging, call ``invalidate(skill_id)`` to clear the cache.
     """
 
     def __init__(self, registry: SkillRegistry):
         self._registry = registry
 
     def load_body(self, skill_id: str) -> Optional[str]:
-        """返回 skill 的 markdown body；缺失返回 None。"""
+        """Return the skill's markdown body; return None if missing."""
         manifest = self._registry.get(skill_id)
         if manifest is None:
             return None
@@ -44,7 +44,7 @@ class SkillLoader:
         return body
 
     def load_many(self, skill_ids: list[str]) -> list[SkillManifest]:
-        """批量加载；返回成功加载（body 非 None）的 manifest 列表，顺序与入参一致。"""
+        """Batch load; return the list of successfully loaded (body not None) manifests, in the same order as the input."""
         out: list[SkillManifest] = []
         for sid in skill_ids:
             body = self.load_body(sid)
@@ -56,7 +56,7 @@ class SkillLoader:
         return out
 
     def invalidate(self, skill_id: Optional[str] = None) -> None:
-        """清 body 缓存。不传 skill_id 清全部。"""
+        """Clear the body cache. If skill_id is not passed, clear all."""
         if skill_id is None:
             for m in self._registry.all(enabled_only=False):
                 m.body = None

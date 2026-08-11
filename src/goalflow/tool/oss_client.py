@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 class OSSClient:
     """
-    阿里云OSS客户端，支持文件上传和下载
+    Alibaba Cloud OSS client, supporting file upload and download
     """
     
     def __init__(self, 
@@ -25,23 +25,23 @@ class OSSClient:
         bucket_name: str
     ):
         """
-        初始化OSS客户端
-        
+        Initialize the OSS client
+
         Args:
-            access_key_id: 阿里云访问密钥ID
-            access_key_secret: 阿里云访问密钥Secret
-            endpoint: OSS endpoint 
-            bucket_name: 存储桶名称
+            access_key_id: Alibaba Cloud access key ID
+            access_key_secret: Alibaba Cloud access key Secret
+            endpoint: OSS endpoint
+            bucket_name: Bucket name
         """
         self.access_key_id = access_key_id
         self.access_key_secret = access_key_secret
         self.endpoint = endpoint
         self.bucket_name = bucket_name
-        
-        # 创建认证对象
+
+        # Create the authentication object
         self.auth = oss2.Auth(access_key_id, access_key_secret)
-        
-        # 创建Bucket对象
+
+        # Create the Bucket object
         self.bucket = oss2.Bucket(self.auth, endpoint, bucket_name)
 
 
@@ -52,13 +52,13 @@ class OSSClient:
             expires:int = 3600*24*7 
         ) -> str:
         """
-        上传文件到OSS
-        
+        Upload a file to OSS
+
         Args:
-            local_file_path: 本地文件路径
-            oss_object_key: OSS对象键（文件在OSS中的路径）
+            local_file_path: Local file path
+            oss_object_key: OSS object key (the file's path in OSS)
         Returns:
-            str: 文件对应的oss_url
+            str: The oss_url corresponding to the file
         """
         try:
             if not os.path.exists(local_file_path):
@@ -84,14 +84,14 @@ class OSSClient:
             expires:int = 3600*24*7 
         ) -> str:
         """
-        上传文件到OSS
-        
+        Upload a file to OSS
+
         Args:
-            data:  文件二进制数据
-            oss_object_key: OSS对象键（文件在OSS中的路径）
+            data:  File binary data
+            oss_object_key: OSS object key (the file's path in OSS)
         Returns:
-            str: 文件对应的oss_url
-        """        
+            str: The oss_url corresponding to the file
+        """
         try:
             result = self.bucket.put_object(oss_object_key, data)
             
@@ -112,22 +112,22 @@ class OSSClient:
             local_file_path: str,
         ) -> bool:
         """
-        从OSS下载文件
-        
+        Download a file from OSS
+
         Args:
-            oss_object_key: OSS对象键（文件在OSS中的路径）
-            local_file_path: 本地文件保存路径
+            oss_object_key: OSS object key (the file's path in OSS)
+            local_file_path: Local path to save the file
 
         Returns:
-            bool: 下载是否成功
+            bool: Whether the download succeeded
         """
         try:
-            # 检查OSS文件是否存在
+            # Check whether the OSS file exists
             if not self.bucket.object_exists(oss_object_key):
                 logger.error(f"OSS文件不存在: {oss_object_key}")
                 return False
-            
-            # 确保本地目录存在
+
+            # Ensure the local directory exists
             os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
             
             self.bucket.get_object_to_file(oss_object_key, local_file_path)
@@ -146,23 +146,23 @@ class OSSClient:
             oss_prefix: str = "",
     ) -> dict:
         """
-        上传整个目录到OSS
-        
+        Upload an entire directory to OSS
+
         Args:
-            local_directory: 本地目录路径
-            oss_prefix: OSS前缀（目录在OSS中的路径）
+            local_directory: Local directory path
+            oss_prefix: OSS prefix (the directory's path in OSS)
 
         Returns:
-            dict: 上传结果统计
+            dict: Upload result statistics
         """
         if not os.path.exists(local_directory):
             logger.error(f"本地目录不存在: {local_directory}")
             return {"success": 0, "failed": 0, "total": 0}
-        
+
         results = {"success": 0, "failed": 0, "total": 0}
         files_to_upload = []
-        
-        # 收集所有文件
+
+        # Collect all files
         for root, dirs, files in os.walk(local_directory):
             for file in files:
                 local_path = os.path.join(root, file)
@@ -190,14 +190,14 @@ class OSSClient:
     
     # def list_objects(self, prefix: str = "", limit: int = 100) -> List[str]:
     #     """
-    #     列出OSS中的对象
-        
+    #     List objects in OSS
+
     #     Args:
-    #         prefix: 对象前缀过滤
-    #         limit: 最大返回数量
-            
+    #         prefix: Object prefix filter
+    #         limit: Maximum number to return
+
     #     Returns:
-    #         List[str]: 对象键列表
+    #         List[str]: List of object keys
     #     """
     #     try:
     #         objects = []
@@ -211,13 +211,13 @@ class OSSClient:
     
     def object_exists(self, oss_object_key: str) -> bool:
         """
-        检查对象是否存在
-        
+        Check whether an object exists
+
         Args:
-            oss_object_key: OSS对象键
-            
+            oss_object_key: OSS object key
+
         Returns:
-            bool: 对象是否存在
+            bool: Whether the object exists
         """
         try:
             return self.bucket.object_exists(oss_object_key)
@@ -228,10 +228,10 @@ class OSSClient:
 
 def create_oss_client_from_env() -> Optional[OSSClient]:
     """
-    从环境变量创建OSS客户端
-    
+    Create an OSS client from environment variables
+
     Returns:
-        Optional[OSSClient]: OSS客户端实例，失败返回None
+        Optional[OSSClient]: OSS client instance, or None on failure
     """
     try:
         access_key_id = os.getenv('OSS_ACCESS_KEY_ID')
@@ -249,30 +249,30 @@ def create_oss_client_from_env() -> Optional[OSSClient]:
         return None
 
 
-# 使用示例
+# Usage example
 if __name__ == "__main__":
-    # 示例配置 - 请替换为您的实际配置
+    # Example configuration - please replace with your actual configuration
     ACCESS_KEY_ID = "sdf"
     ACCESS_KEY_SECRET = "sdf"
     ENDPOINT = "sdfsdf"
     BUCKET_NAME = "sdfs"
-    
-    # 创建OSS客户端
+
+    # Create the OSS client
     oss_client = OSSClient(ACCESS_KEY_ID, ACCESS_KEY_SECRET, ENDPOINT, BUCKET_NAME)
-    
-    # 示例1: 上传单个文件
+
+    # Example 1: upload a single file
     #oss_url = oss_client.upload_file(local_file_path="D:/test_oss.txt", oss_object_key="oss_folder/test_file.txt")
-    
+
     #print(oss_url)
-    
-    # 示例2: 下载单个文件
+
+    # Example 2: download a single file
     # oss_client.download_file("oss_folder/file.txt", "downloaded_file.txt")
-    
-    # 示例3: 上传整个目录
+
+    # Example 3: upload an entire directory
     # oss_client.upload_directory("local_directory", "oss_prefix/")
-    
-    # 示例4: 列出对象
+
+    # Example 4: list objects
     # objects = oss_client.list_objects("prefix/")
     # print("OSS中的对象:", objects)
-    
+
     print("OSS客户端创建成功！请配置您的阿里云OSS信息后使用。")

@@ -18,15 +18,15 @@ from enum import Enum
 
 
 class NodeVarConfig:
-    """dify 节点的入参配置"""
+    """input parameter config of a dify node"""
 
     variable: str
-    """在本节点中变量新名称"""
+    """new name of the variable within this node"""
 
     value_selector: List[str]
     """
-    变量值来源，格式为['17490117806280', 'result']
-    其中17490117806280为来源节点id， result是来源节点输出变量名称
+    source of the variable value, in the format ['17490117806280', 'result']
+    where 17490117806280 is the source node id, and result is the output variable name of the source node
     """
 
     value_type: Optional[str]
@@ -313,18 +313,18 @@ class Condition:
 
     variable_selector: list[str]
     """
-    变量选择器， 格式 为 ["2342342342", "result"]
-    其中第一项通常为变量输出节点的id
+    variable selector, in the format ["2342342342", "result"]
+    where the first item is usually the id of the variable output node
     """
 
     comparison_operator: SupportedComparisonOperator
     """
-    比较运算符
+    comparison operator
     """
 
     value: str | Sequence[str] | None
     """
-    设置的条件值，如果有sub_variable_condition 则value 为 None
+    the configured condition value; if sub_variable_condition is present then value is None
     """
 
     varType: Literal[
@@ -333,8 +333,8 @@ class Condition:
 
     sub_variable_condition: SubVariableCondition | None
     """
-    value 与sub_variable_condition 二选一
-    当varType 为 array 时，value 为 None 时，sub_variable_condition 为必填
+    value and sub_variable_condition are mutually exclusive
+    when varType is array and value is None, sub_variable_condition is required
     """
 
     id: str | None
@@ -420,7 +420,7 @@ class VisionConfig:
 
 class LLmNodePromptTemplate:
     """
-    llm节点的prompt模板配置
+    prompt template config of an llm node
     """
 
     __slots__ = ["id", "role", "text", "multimodal_content","jinja2_text", "edition_type"]
@@ -668,11 +668,11 @@ class HttpNodeAuthorizationConfig:
 
 class HttpNodeRetryConfig:
     __slots__ = ["max_retries", "retry_enabled", "retry_interval"]
-    # 最大重试次数
+    # max number of retries
     max_retries: int
-    # 是否启用重试
+    # whether retry is enabled
     retry_enabled: bool
-    # 重试间隔，单位毫秒
+    # retry interval, in milliseconds
     retry_interval: int
 
     def __init__(
@@ -689,11 +689,11 @@ class HttpNodeRetryConfig:
 
 class HttpNodeTimeoutConfig:
     __slots__ = ["max_connect_timeout", "max_read_timeout", "max_write_timeout"]
-    # 连接超时时间，单位秒
+    # connect timeout, in seconds
     max_connect_timeout: int
-    # 读取超时时间，单位秒
+    # read timeout, in seconds
     max_read_timeout: int
-    # 写入超时时间，单位秒
+    # write timeout, in seconds
     max_write_timeout: int
 
     def __init__(
@@ -854,7 +854,7 @@ class AgentToolValueConfig:
     enabled: bool
     extra: Dict[str, Any]
     parameters: Dict[str, AgentToolParameterConfig]
-    # 对应dify数据库表tool_workflow_providers id
+    # corresponds to the id of the dify database table tool_workflow_providers
     provider_name: str
     schemas: Optional[list[ToolParamSchema]]
     func: Optional[Callable] = None

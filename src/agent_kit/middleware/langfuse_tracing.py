@@ -1,13 +1,13 @@
-"""LangfuseTracingMiddleware：包装 ``harness.tracer.span`` 为 agent 边界 span。
+"""LangfuseTracingMiddleware: wraps ``harness.tracer.span`` as an agent-boundary span.
 
-设计意图：替代 ``AgentRuntime._stream_agent_messages`` 里手写的
-``with HARNESS_OBS.span(...):`` 上下文管理。把"在 agent 生命周期外面开 span"
-做成可插拔 middleware。
+Design intent: replaces the hand-written ``with HARNESS_OBS.span(...):`` context management in
+``AgentRuntime._stream_agent_messages``. Turns "opening a span around the agent lifecycle"
+into a pluggable middleware.
 
-行为：
-- ``before_agent`` 开 span（写入 state["__langfuse_span"]，便于 after_agent 关闭）
-- ``after_agent`` 关 span
-- Langfuse 不可用 / harness.tracer 不存在时降级 noop
+Behavior:
+- ``before_agent`` opens the span (writes to state["__langfuse_span"], so after_agent can close it)
+- ``after_agent`` closes the span
+- Degrades to noop when Langfuse is unavailable / harness.tracer does not exist
 """
 from __future__ import annotations
 
@@ -30,13 +30,13 @@ _SPAN_STATE_KEY = "__langfuse_span_cm__"
 class LangfuseTracingMiddleware(
     AgentMiddleware[ContextAgentState, ContextT, ResponseT]
 ):
-    """围绕 agent 生命周期开 / 关 Langfuse span。
+    """Open / close a Langfuse span around the agent lifecycle.
 
-    构造参数：
-    - ``harness``：``Harness`` 实例，从 ``tracer`` 读 ``span()`` context manager
-    - ``span_prefix``：span name 前缀，默认 ``"agent"``。最终 ``<prefix>_run``
-    - ``session_id_field``：从 ``runtime.context`` 哪个字段读 session_id；
-      默认 ``"sys_conversation_id"``
+    Constructor parameters:
+    - ``harness``: the ``Harness`` instance, from which the ``span()`` context manager is read via ``tracer``
+    - ``span_prefix``: span name prefix, default ``"agent"``. Final ``<prefix>_run``
+    - ``session_id_field``: which field of ``runtime.context`` to read session_id from;
+      default ``"sys_conversation_id"``
     """
 
     def __init__(
@@ -79,7 +79,7 @@ class LangfuseTracingMiddleware(
         except Exception as e:
             logger.warning(f"LangfuseTracingMiddleware: span enter failed: {e}")
             return None
-        # 把 context manager 暂存到 state，after_agent 取出关闭
+        # Stash the context manager into state; after_agent pulls it out to close
         return {_SPAN_STATE_KEY: cm}
 
     @override
@@ -93,5 +93,5 @@ class LangfuseTracingMiddleware(
             cm.__exit__(None, None, None)
         except Exception as e:
             logger.warning(f"LangfuseTracingMiddleware: span exit failed: {e}")
-        # 清理 state key
+        # Clean up the state key
         return {_SPAN_STATE_KEY: None}

@@ -1,19 +1,19 @@
-"""InProcessAdapter：把 SkillManifest.entry_point (kind=in_process) 转成 LangChain Tool。
+"""InProcessAdapter: convert SkillManifest.entry_point (kind=in_process) into a LangChain Tool.
 
-约定：
-- ``entry_point.target`` 格式：``"module.path:function_name"``
-  例如 ``"my_skill_pkg.weather:get_weather"``
-- 函数签名任意；LangChain ``@tool`` 会从签名 + 类型注解 + docstring 自动生成 schema
-- tool 名优先级：
-    1. ``entry_point.tool_name``（可选字段，PR3 加入）
-    2. ``manifest.skill_id``（kebab-case 目录名，一定是 ASCII，LangChain 兼容）
-- tool description：
-    1. 函数 docstring（LangChain 优先用这个）
-    2. 退化到 ``manifest.description``
+Conventions:
+- ``entry_point.target`` format: ``"module.path:function_name"``
+  e.g. ``"my_skill_pkg.weather:get_weather"``
+- Any function signature; LangChain ``@tool`` auto-generates the schema from signature + type annotations + docstring
+- tool name priority:
+    1. ``entry_point.tool_name`` (optional field, added in PR3)
+    2. ``manifest.skill_id`` (kebab-case directory name, always ASCII, LangChain-compatible)
+- tool description:
+    1. function docstring (LangChain prefers this)
+    2. fall back to ``manifest.description``
 
-错误处理：
-- import 失败 / 函数不存在 / 非 callable / 缺 docstring → 静默 skip + warn log
-- 一个 skill 出错不影响其它 skill
+Error handling:
+- import failure / function missing / non-callable / missing docstring → silent skip + warn log
+- one skill's error does not affect other skills
 """
 from __future__ import annotations
 
@@ -27,11 +27,11 @@ logger = logging.getLogger(__name__)
 
 
 class InProcessAdapter:
-    """无状态适配器；纯函数式 API。"""
+    """Stateless adapter; purely functional API."""
 
     @classmethod
     def materialize(cls, manifest: SkillManifest) -> Optional[Any]:
-        """把单个 manifest 转成 LangChain Tool；失败返回 None。"""
+        """Convert a single manifest into a LangChain Tool; return None on failure."""
         ep = manifest.entry_point
         if ep is None:
             logger.warning(
@@ -51,14 +51,14 @@ class InProcessAdapter:
         if fn is None:
             return None
 
-        # 尝试取 tool_name；EntryPoint 没声明就用 skill_id
+        # Try to get tool_name; if EntryPoint doesn't declare one, use skill_id
         tool_name = getattr(ep, "tool_name", None) or manifest.skill_id
 
-        # 用 LangChain @tool 包装
+        # Wrap with LangChain @tool
         try:
             from langchain_core.tools import tool as lc_tool
 
-            # 如果函数没 docstring，用 manifest.description 兜底（LangChain 要求 description）
+            # If the function has no docstring, fall back to manifest.description (LangChain requires description)
             if not fn.__doc__:
                 fn.__doc__ = manifest.description or f"Skill: {manifest.name}"
 
@@ -73,7 +73,7 @@ class InProcessAdapter:
 
     @classmethod
     def materialize_many(cls, manifests: list[SkillManifest]) -> list[Any]:
-        """批量；只返回成功 materialize 的 tool。"""
+        """Batch; only returns tools that materialized successfully."""
         tools = []
         for m in manifests:
             t = cls.materialize(m)
@@ -83,7 +83,7 @@ class InProcessAdapter:
 
 
 def _resolve_target(target: str, skill_id: str):
-    """``"pkg.mod:func"`` → 可调用对象。失败返回 None。"""
+    """``"pkg.mod:func"`` → callable object. Return None on failure."""
     if not target or ":" not in target:
         logger.warning(
             "InProcessAdapter: skill %r target=%r missing ':' separator (expect 'module:func')",

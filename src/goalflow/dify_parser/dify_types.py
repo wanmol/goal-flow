@@ -81,11 +81,11 @@ class DifyNodeDataBase:
     #input_vars_config : Optional[List[DifyNodeVarConfig]] = None
     variables : Optional[List[NodeVarConfig]] 
     
-    isInIteration: Optional[bool] 
-    """是否在迭代节点中"""
-    
-    isInLoop: Optional[bool] 
-    """是否在循环节点中"""
+    isInIteration: Optional[bool]
+    """Whether it is inside an iteration node"""
+
+    isInLoop: Optional[bool]
+    """Whether it is inside a loop node"""
     
     iteration_id: Optional[str] 
     
@@ -296,11 +296,11 @@ class DifyCodeNodeData(DifyNodeDataBase):
     __slots__ = ["code","code_language","outputs","output_vars"]
     
     code: str
-    """代码文本"""
+    """Code text"""
     code_language: str
-    """代码语言,当前只支持python"""
+    """Code language; currently only python is supported"""
     outputs: dict
-    """代码执行输出变量设置"""
+    """Output variable settings for code execution"""
     
     # {"var_name1":"string", "var_name2":"int"}
     output_vars : dict
@@ -610,9 +610,9 @@ class DifyKnowledgeNodeData(DifyNodeDataBase):
         "metadata_filtering_conditions"
     ]
     
-    dataset_ids: Sequence[str]   
+    dataset_ids: Sequence[str]
     """
-    知识库数据集id
+    Knowledge base dataset id
     """
     
     

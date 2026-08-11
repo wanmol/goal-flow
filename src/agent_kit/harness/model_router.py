@@ -1,24 +1,24 @@
 """
-Model Router：task_type → LLM 实例的统一入口。
+Model Router: a unified entry point for task_type → LLM instance.
 
-设计要点：
-- agent_kit 不直接绑定任何具体 LLM 工厂（不依赖宿主仓库的 llm.LLM.create）
-- 调用方在启动时通过 ``register_llm_factory(callable)`` 注入工厂函数
-- Router 负责：task_type 路由 / fallback / 重试策略 / 缓存
+Design points:
+- agent_kit does not directly bind any concrete LLM factory (no dependency on the host repo's llm.LLM.create)
+- The caller injects a factory function at startup via ``register_llm_factory(callable)``
+- The Router is responsible for: task_type routing / fallback / retry strategy / caching
 
-工厂函数签名约定：
+Factory function signature convention:
     factory(provider: str, model: str, temperature: float, max_tokens: int,
             **extra_kwargs) -> BaseChatModel
-其中 extra_kwargs 会接到 timeout / max_retries 等可选项；
-工厂函数可以选择性消费这些 kwargs（不支持的直接忽略）。
+where extra_kwargs receives optional items like timeout / max_retries;
+the factory may consume these kwargs selectively (ignoring unsupported ones outright).
 
-业务在自己的 task_type 上注册自定义配置：
+Business code registers custom config on its own task_type:
     HARNESS_ROUTER.configure(
         "negotiation",
         provider="qwen", model="qwen-max", temperature=0.7,
     )
 
-Runtime 拿 LLM：
+Runtime fetches an LLM:
     llm = HARNESS_ROUTER.get("negotiation")
 """
 from __future__ import annotations
@@ -36,10 +36,10 @@ LLMFactory = Callable[..., Any]
 
 @dataclass
 class TaskLLMConfig:
-    """单个 task_type 的 LLM 配置。
+    """LLM config for a single task_type.
 
-    None 字段表示"用 HARNESS_SETTINGS.llm 的默认值"。
-    业务可以只覆盖关心的字段（如只改 temperature），其它走 Harness 默认。
+    A None field means "use the default value from HARNESS_SETTINGS.llm".
+    Business code can override only the fields it cares about (e.g. only temperature), leaving the rest to Harness defaults.
     """
 
     provider: Optional[str] = None
@@ -51,7 +51,7 @@ class TaskLLMConfig:
     extra: dict = field(default_factory=dict)
 
     def resolve(self) -> dict:
-        """合并 HARNESS_SETTINGS.llm 默认值，返回完整 kwargs。"""
+        """Merge in the HARNESS_SETTINGS.llm defaults and return the complete kwargs."""
         d = HARNESS_SETTINGS.llm
         return {
             "provider": self.provider or d.provider,
@@ -65,7 +65,7 @@ class TaskLLMConfig:
 
 
 class ModelRouter:
-    """task_type → LLM 路由器。"""
+    """task_type → LLM router."""
 
     def __init__(self) -> None:
         self._factory: Optional[LLMFactory] = None
@@ -74,13 +74,13 @@ class ModelRouter:
         self._fallback_factory: Optional[LLMFactory] = None
 
     def register_llm_factory(self, factory: LLMFactory) -> None:
-        """注入 LLM 工厂函数。Day4 默认调用方：``LLM.create``。"""
+        """Inject the LLM factory function. Day4 default caller: ``LLM.create``."""
         self._factory = factory
         self._cache.clear()
         logger.info(f"ModelRouter: llm_factory registered ({factory!r})")
 
     def register_fallback_factory(self, factory: LLMFactory) -> None:
-        """主工厂报错时的兜底工厂（如换提供方）。可选。"""
+        """Fallback factory used when the primary factory errors (e.g. switching providers). Optional."""
         self._fallback_factory = factory
 
     def configure(
@@ -95,7 +95,7 @@ class ModelRouter:
         max_retries: Optional[int] = None,
         **extra,
     ) -> None:
-        """为某个 task_type 注册/更新配置。"""
+        """Register/update config for a given task_type."""
         if task_type in self._configs:
             old = self._configs[task_type]
             self._configs[task_type] = replace(
@@ -122,7 +122,7 @@ class ModelRouter:
         logger.info(f"ModelRouter: configured task_type={task_type!r}")
 
     def get(self, task_type: str = "default") -> Any:
-        """拿到 task_type 对应的 LLM 实例。"""
+        """Get the LLM instance corresponding to task_type."""
         if task_type in self._cache:
             return self._cache[task_type]
 
@@ -139,7 +139,7 @@ class ModelRouter:
         try:
             llm = self._factory(**kwargs)
         except Exception as e:
-            # 兼容底层工厂不支持 timeout 等参数
+            # Compatible with underlying factories that don't support params like timeout
             if "timeout" in str(e) or "max_retries" in str(e) or isinstance(e, TypeError):
                 logger.warning(
                     f"ModelRouter: factory rejected kwargs ({e!r}); "
@@ -171,15 +171,15 @@ class ModelRouter:
         return llm
 
     def _sanitize_for_factory(self, kwargs: dict) -> dict:
-        """业务工厂可能不认 None；把 None 字段去掉以便用工厂自己的默认。"""
+        """Business factories may not accept None; drop None fields so the factory's own defaults apply."""
         return {k: v for k, v in kwargs.items() if v is not None}
 
     def reset(self) -> None:
-        """清空缓存（工厂/配置保留）。单测/调试用。"""
+        """Clear the cache (factory/config retained). For unit tests/debugging."""
         self._cache.clear()
 
     def reset_all(self) -> None:
-        """清空缓存 + 配置 + 工厂。仅单测使用。"""
+        """Clear cache + config + factory. Unit-test use only."""
         self._cache.clear()
         self._configs.clear()
         self._factory = None

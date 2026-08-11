@@ -1,4 +1,4 @@
-"""``ModelFailoverMiddleware`` 顶层公开入口。"""
+"""``ModelFailoverMiddleware`` top-level public entry point."""
 from agent_kit.harness.middleware.model_failover import (
     FailoverPredicate,
     ModelFailoverMiddleware,

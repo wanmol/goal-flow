@@ -1,14 +1,14 @@
-"""n8n 工作流 → 可运行的 goalflow workflow(.py) 代码生成器。
+"""n8n workflow -> runnable goalflow workflow (.py) code generator.
 
-设计对照 ``goalflow.tool.dify_transformer.wf_code_generator.WorkflowCodeGenerator``：
-解析 n8n JSON → 遍历节点/边 → 生成一个 BaseWorkflow 子类源码文件。
+Modeled on ``goalflow.tool.dify_transformer.wf_code_generator.WorkflowCodeGenerator``:
+parse n8n JSON -> traverse nodes/edges -> generate a BaseWorkflow subclass source file.
 
-节点落地策略（核心子集 + 占位兜底）：
-- START / END / HTTP_REQUEST / IF_ELSE / CODE：生成真实 goalflow 节点
-- 其余(含 LLM/Agent 及各类集成)：生成 PlaceholderNode 透传占位，并记入警告清单
+Node mapping strategy (core subset + placeholder fallback):
+- START / END / HTTP_REQUEST / IF_ELSE / CODE: generate real goalflow nodes
+- Everything else (including LLM/Agent and various integrations): generate a passthrough PlaceholderNode, recorded in the warning list
 
-路由：goalflow 节点通过 ``Command(goto=next_node_ids)`` 动态路由，
-因此只需 ``graph.add_node`` + 设置 ``next_node_ids``，START 额外 ``add_edge(START, id)``。
+Routing: goalflow nodes route dynamically via ``Command(goto=next_node_ids)``,
+so only ``graph.add_node`` + setting ``next_node_ids`` is needed, with START additionally getting ``add_edge(START, id)``.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from goalflow.n8n_parser import (
 )
 from goalflow.n8n_parser.n8n_types import N8nNode
 
-_INDENT = "        "  # 方法体内 8 空格缩进
+_INDENT = "        "  # 8-space indentation inside method bodies
 
 
 class N8nCodeGenerator:
@@ -44,9 +44,9 @@ class N8nCodeGenerator:
         self.class_name = class_name
         self.out_path = out_path
         self.generated_code = ""
-        # 转换过程中收集的未支持节点，供 CLI 打印警告清单
+        # Unsupported nodes collected during conversion, for the CLI to print a warning list
         self.warnings: List[str] = []
-        # 节点 id → 生成代码里的变量名
+        # node id -> variable name in the generated code
         self._var_by_id: Dict[str, str] = {}
 
     def generate(self) -> str:
@@ -82,7 +82,7 @@ class N8nCodeGenerator:
         return self.generated_code
 
     def _assign_var_names(self, workflow: N8nWorkflow):
-        """给每个节点分配唯一、合法的 Python 变量名。"""
+        """Assign a unique, valid Python variable name to each node."""
         used = set()
         for node in workflow.nodes:
             base = re.sub(r"\W", "_", node.name).strip("_").lower() or "node"
@@ -156,7 +156,7 @@ class N8nCodeGenerator:
             elif kind == GoloNodeKind.END:
                 fragments.append(self._emit_end(node))
             else:
-                # LLM / Agent / 各类集成 → 占位兜底
+                # LLM / Agent / various integrations -> placeholder fallback
                 self.warnings.append(f"{node.name} ({node.type})")
                 fragments.append(self._emit_placeholder(node, next_ids, is_start))
         return "\n".join(fragments) if fragments else f"{_INDENT}pass"
@@ -176,7 +176,7 @@ class N8nCodeGenerator:
             )
         return "\n".join(fragments) if fragments else f"{_INDENT}pass"
 
-    # ── 各类节点 emit ──
+    # -- emit for various node types --
 
     def _common_args_literal(self, node: N8nNode) -> str:
         return (
@@ -209,7 +209,7 @@ class N8nCodeGenerator:
     def _emit_code(self, node: N8nNode, next_ids: List[str]) -> str:
         var = self._var_by_id[node.id]
         common = self._common_args_literal(node).replace("{type}", "code")
-        # n8n Code 节点跑 JS,goalflow 跑 Python。原样保留为占位字符串 + TODO,不猜译。
+        # n8n Code nodes run JS, goalflow runs Python. Kept verbatim as a placeholder string + TODO, no guessed translation.
         js = node.parameters.get("jsCode") or node.parameters.get("functionCode") or ""
         code_body = (
             "# TODO: 原 n8n Code 节点为 JavaScript,需人工改写为 Python\n"
@@ -226,7 +226,7 @@ class N8nCodeGenerator:
     def _emit_if(self, node: N8nNode, workflow: N8nWorkflow) -> str:
         var = self._var_by_id[node.id]
         common = self._common_args_literal(node).replace("{type}", "if-else")
-        # n8n IF：输出索引 0=true,1=false。goalflow 通过 source_handle_target_map[case_id] 路由。
+        # n8n IF: output index 0=true, 1=false. goalflow routes via source_handle_target_map[case_id].
         true_ids, false_ids = [], []
         for e in workflow.get_outgoing_edges(node.id):
             (true_ids if e.source_output_index == 0 else false_ids).append(e.target)
@@ -251,7 +251,7 @@ class N8nCodeGenerator:
 
     def _emit_placeholder(self, node: N8nNode, next_ids: List[str], is_start: bool) -> str:
         var = self._var_by_id[node.id]
-        # 占位节点借用 code 类型;若它恰好是起始节点,类型仍标 start 以便运行时识别
+        # The placeholder node borrows the code type; if it happens to be the start node, the type is still marked start for runtime recognition
         node_type = "start" if is_start else "code"
         common = self._common_args_literal(node).replace("{type}", node_type)
         params_json = json.dumps(node.parameters, ensure_ascii=False)

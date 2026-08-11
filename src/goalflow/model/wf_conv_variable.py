@@ -40,14 +40,14 @@ class WorkflowConversationVariables(Base):
 
 
 class WorkflowConversationVariablesDB:
-    """工作流会话变量数据库操作类"""
+    """Workflow conversation variables database operations class"""
 
     @classmethod
     def create(
         cls, variables: WorkflowConversationVariables
     ) -> WorkflowConversationVariables:
         """
-        创建工作流会话变量记录
+        Create a workflow conversation variables record
         """
         start = time.time()
         now_input = datetime.now()
@@ -55,14 +55,14 @@ class WorkflowConversationVariablesDB:
         variables.updated_at = now_input
 
         with Database.get_session() as session:
-            # 自动处理  conversation_id重复的情况
+            # Automatically handle the case of a duplicate conversation_id
             session.add(variables)
             session.commit()
             session.refresh(variables)
             if variables is not None:
                 session.expunge(
                     variables
-                )  # 将对象从会话中分离，这样在会话外也可以访问属性
+                )  # Detach the object from the session so its attributes can be accessed outside the session
 
         return variables
 
@@ -71,14 +71,14 @@ class WorkflowConversationVariablesDB:
         cls, *, obj: WorkflowConversationVariables
     ) -> Optional[WorkflowConversationVariables]:
         """
-        更新工作流会话变量
-        conversation_id: 会话ID
-        data: 变量数据
+        Update workflow conversation variables
+        conversation_id: conversation ID
+        data: variable data
         """
         update_data = {"data": obj.data, "updated_at": datetime.now()}
 
         with Database.get_session() as session:
-            # 更新记录
+            # Update the record
             updated_count = (
                 session.query(WorkflowConversationVariables)
                 .filter(WorkflowConversationVariables.id == obj.id)
@@ -94,9 +94,9 @@ class WorkflowConversationVariablesDB:
         cls, *, conv_vars: WorkflowConversationVariables
     ) -> Optional[WorkflowConversationVariables]:
         """
-        更新工作流会话变量
-        conversation_id: 会话ID
-        data: 变量数据
+        Update workflow conversation variables
+        conversation_id: conversation ID
+        data: variable data
         """
         update_data = {
             "data": conv_vars.data,
@@ -105,7 +105,7 @@ class WorkflowConversationVariablesDB:
         }
 
         with Database.get_session() as session:
-            # 更新记录
+            # Update the record
             session.query(WorkflowConversationVariables).filter(
                 WorkflowConversationVariables.conversation_id
                 == conv_vars.conversation_id
@@ -117,8 +117,8 @@ class WorkflowConversationVariablesDB:
     @classmethod
     def delete(cls, *, conversation_id: str) -> bool:
         """
-        删除工作流会话变量
-        conversation_id: 会话ID
+        Delete workflow conversation variables
+        conversation_id: conversation ID
         """
         with Database.get_session() as session:
             variables = (
@@ -138,8 +138,8 @@ class WorkflowConversationVariablesDB:
     @classmethod
     def get_by_id(cls, *, vid: int) -> Optional[WorkflowConversationVariables]:
         """
-        根据ID查询工作流会话变量
-        vid: 变量记录ID
+        Query workflow conversation variables by ID
+        vid: variable record ID
         """
         with Database.get_session() as session:
             variables = (
@@ -158,8 +158,8 @@ class WorkflowConversationVariablesDB:
         cls, *, conversation_id: str
     ) -> Optional[WorkflowConversationVariables]:
         """
-        根据会话ID查询工作流会话变量
-        conversation_id: 会话ID
+        Query workflow conversation variables by conversation ID
+        conversation_id: conversation ID
         """
         with Database.get_session() as session:
             variables = (
@@ -180,17 +180,17 @@ class WorkflowConversationVariablesDB:
         cls, *, conversation_id: str, data: Dict[str, Any]
     ) -> WorkflowConversationVariables:
         """
-        插入或更新工作流会话变量（如果存在则更新，不存在则创建）
-        conversation_id: 会话ID
-        data: 变量数据
+        Insert or update workflow conversation variables (update if it exists, create if it does not)
+        conversation_id: conversation ID
+        data: variable data
         """
         existing = cls.get_by_conversation_id(conversation_id=conversation_id)
 
         if existing:
-            # 更新现有记录
+            # Update the existing record
             return cls.update(conversation_id=conversation_id, data=data)
         else:
-            # 创建新记录
+            # Create a new record
             variables = WorkflowConversationVariables(
                 conversation_id=conversation_id, data=data
             )
@@ -201,19 +201,19 @@ class WorkflowConversationVariablesDB:
         cls, *, conversation_id: str, new_data: Dict[str, Any]
     ) -> Optional[WorkflowConversationVariables]:
         """
-        合并变量数据（将新数据合并到现有数据中）
-        conversation_id: 会话ID
-        new_data: 要合并的新数据
+        Merge variable data (merge new data into the existing data)
+        conversation_id: conversation ID
+        new_data: the new data to merge
         """
         existing = cls.get_by_conversation_id(conversation_id=conversation_id)
 
         if existing:
-            # 合并数据
+            # Merge the data
             merged_data = existing.data.copy() if existing.data else {}
             merged_data.update(new_data)
             return cls.update(conversation_id=conversation_id, data=merged_data)
         else:
-            # 创建新记录
+            # Create a new record
             variables = WorkflowConversationVariables(
                 conversation_id=conversation_id, data=new_data
             )

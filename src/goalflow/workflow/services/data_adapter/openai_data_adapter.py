@@ -21,7 +21,7 @@ class OpenAIDataAdapter(AbstractDataAdapter):
             
             chunk = ChatStreamChunk.model_validate_json(event_data)
             
-            # 只处理message或error事件
+            # only handle message or error events
             if chunk.event in ["message", "error"]:
                 openai_format = self._convert_chunk_to_openai_format(chunk)
                 yield f"data:  {openai_format}\n\n"
@@ -30,31 +30,31 @@ class OpenAIDataAdapter(AbstractDataAdapter):
             
     def _convert_chunk_to_openai_format(self, chunk: ChatStreamChunk) -> Dict[str, Any]:
         """
-        将ChatStreamChunk转换为OpenAI格式
+        Convert ChatStreamChunk to OpenAI format
         """
-        # 只处理event=message或event=error的情况
+        # only handle the case of event=message or event=error
         if chunk.event == "message":
-            # 判断是否是最后一条消息，这里我们假设如果answer为空或chunk有某种结束标志，则认为是最后一条
-            # 由于我们无法确定具体什么条件下是最后一条消息，我们添加一个逻辑来检测是否是结束
-            # 这里可以根据具体业务逻辑进行调整，比如检查chunk中的某些字段来判断是否是结束
+            # determine whether it is the last message; here we assume that if answer is empty or the chunk has some end marker, it is the last one
+            # since we cannot determine the specific condition for the last message, we add a logic to detect whether it is the end
+            # this can be adjusted according to specific business logic, e.g. checking certain fields in the chunk to determine whether it is the end
             finish_reason = None
             delta_content = chunk.answer if hasattr(chunk, 'answer') and chunk.answer else ""
-            
-            # 如果消息内容为空且可能代表结束状态，设置finish_reason为stop
-            # 这里需要根据实际情况调整判断条件，例如通过meta信息或其他字段判断
+
+            # if the message content is empty and may represent an end state, set finish_reason to stop
+            # the judgment condition here needs to be adjusted according to the actual situation, e.g. judging via meta information or other fields
             is_last_message = False
             if hasattr(chunk, 'meta') and isinstance(chunk.meta, dict):
-                # 检查元数据中是否有结束标志
+                # check whether there is an end marker in the metadata
                 is_last_message = chunk.meta.get('is_last', False) or \
                                  chunk.meta.get('finish', False) or \
                                  chunk.meta.get('end_of_stream', False)
-            
-            # 或者如果answer为空字符串，可能是结束信号
+
+            # or if answer is an empty string, it may be an end signal
             if not delta_content :
-                # 如果有返回码且为正常结束码，可能表示结束
+                # if there is a return code and it is a normal end code, it may indicate the end
                 is_last_message = True
-            
-            # 根据是否是最后一条消息设置finish_reason
+
+            # set finish_reason based on whether it is the last message
             finish_reason = "stop" if is_last_message else ""
             
             return {
@@ -77,7 +77,7 @@ class OpenAIDataAdapter(AbstractDataAdapter):
                 "reason": chunk.message
             }
         else:
-            # 对于其他事件类型，返回空的delta
+            # for other event types, return an empty delta
             return {
                 "id": f"chatcmpl-{chunk.message_id}",
                 "object": "chat.completion.chunk",

@@ -9,7 +9,7 @@ from typing import Iterator,Any
 from goalflow.workflow.base_workflow import BaseWorkflow,GraphEdge
 import os
 
-class GeneratedWorkflow_1755689716614(BaseWorkflow[BaseState]):
+class DemoChatflow(BaseWorkflow[BaseState]):
     """Generated workflow for: 1755689716614"""
     
     def __init__(self,config_schema:str=None,workflow_type:str="chatflow"):
@@ -35,7 +35,7 @@ class GeneratedWorkflow_1755689716614(BaseWorkflow[BaseState]):
     
     def _setup_nodes(self):
         """Setup all workflow nodes"""
-        # create start node[id=1755689716614,title=开始]
+        # create start node[id=1755689716614,title=start]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '开始', 'type': 'start', 'isInIteration': False, 'isInLoop': False, 'id': '1755689716614', 'parent_node_id': None})
         wf_inputs_data = []
         wf_inputs = [WfVariableConfig.from_json(item) for item in wf_inputs_data]
@@ -49,7 +49,7 @@ class GeneratedWorkflow_1755689716614(BaseWorkflow[BaseState]):
 
         start_node.next_node_ids = ['1756044135146']
         self.graph.add_node("1755689716614", start_node)
-        # create iteration node[id=1756023315127,title=迭代]
+        # create iteration node[id=1756023315127,title=iteration]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '迭代', 'type': 'iteration', 'isInIteration': False, 'isInLoop': False, 'id': '1756023315127', 'parent_node_id': None})
         iteration_node_1756023315127 = IterationNode(
             start_node_id="1756023315127start",
@@ -73,7 +73,7 @@ class GeneratedWorkflow_1755689716614(BaseWorkflow[BaseState]):
 
 
         iteration_start_node_1756023315127start.next_node_ids = ['1756045841366']
-	        # create classifier node[id=1756044135146,title=联网意图识别]
+	        # create classifier node[id=1756044135146,title=online search intent recognition]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '联网意图识别', 'type': 'question-classifier', 'isInIteration': False, 'isInLoop': False, 'id': '1756044135146', 'parent_node_id': None})
         classes = []
         classes_config = [{'name': '需要联网搜索的问题', 'id': '1'}, {'name': '不需要联网搜索的问题', 'id': '2'}]
@@ -110,7 +110,7 @@ class GeneratedWorkflow_1755689716614(BaseWorkflow[BaseState]):
         classifier_node_1756044135146.source_handle_target_map ={'1': ['1756045460846'], '2': ['1756046728919']}
             
 
-        # create llm node[id=1756045460846,title=问题改写]
+        # create llm node[id=1756045460846,title=question rewriting]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '问题改写', 'type': 'llm', 'isInIteration': False, 'isInLoop': False, 'id': '1756045460846', 'parent_node_id': None})
         memory_config = None
         memory = MemoryConfig(**memory_config) if memory_config else None
@@ -145,7 +145,7 @@ class GeneratedWorkflow_1755689716614(BaseWorkflow[BaseState]):
 
         llm_node_1756045460846.next_node_ids = ['1756045587974']
         self.graph.add_node("1756045460846", llm_node_1756045460846)
-	        # create code node[id=1756045587974,title=代码执行]
+	        # create code node[id=1756045587974,title=code execution]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '代码执行', 'type': 'code', 'variables': [{'variable': 'text', 'value_selector': ['1756045460846', 'text']}], 'isInIteration': False, 'isInLoop': False, 'id': '1756045587974', 'parent_node_id': None})
         code_node_1756045587974 = CodeNode(
             code=r"""
@@ -173,7 +173,7 @@ def main(text: str) -> dict:
 
         code_node_1756045587974.next_node_ids = ['1756023315127']
         self.graph.add_node("1756045587974", code_node_1756045587974)
-        # create http request node[id=1756045841366,title=HTTP 请求]
+        # create http request node[id=1756045841366,title=HTTP request]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': 'HTTP 请求', 'type': 'http-request', 'isInIteration': True, 'isInLoop': False, 'iteration_id': '1756023315127', 'id': '1756045841366', 'parent_node_id': '1756023315127'})
         body_json_data = {'type': 'json', 'data': [{'key': '', 'value': '{\n    "messages": [\n        {\n            "content": "{{#1756023315127.item#}}",\n            "role": "user"\n        }\n    ],\n"resource_type_filter": [\n{"type": "web", "top_k": 5}\n]\n}', 'id': 'key-value-427', 'type': 'text'}]}
         auth_json_data = {'type': 'api-key', 'config': {'api_key': os.getenv('QIANFAN_API_KEY'), 'header': None, 'type': 'bearer'}}
@@ -230,7 +230,7 @@ def main(text: str) -> dict:
 
 
         http_node_1756045841366.next_node_ids = ['1756046176566']
-	        # create code node[id=1756046176566,title=代码执行 2]
+	        # create code node[id=1756046176566,title=code execution 2]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '代码执行 2', 'type': 'code', 'variables': [{'variable': 'res', 'value_selector': ['1756045841366', 'body']}, {'variable': 'req', 'value_selector': ['1756023315127', 'item']}], 'isInIteration': True, 'isInLoop': False, 'iteration_id': '1756023315127', 'id': '1756046176566', 'parent_node_id': '1756023315127'})
         code_node_1756046176566 = CodeNode(
             code=r"""
@@ -253,7 +253,7 @@ def main(res: str, req: str) -> dict:
 
         code_node_1756046176566.next_node_ids = []
 
-        # create llm node[id=1756046349071,title=信息整合回答]
+        # create llm node[id=1756046349071,title=information integration answer]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '信息整合回答', 'type': 'llm', 'isInIteration': False, 'isInLoop': False, 'id': '1756046349071', 'parent_node_id': None})
         memory_config = None
         memory = MemoryConfig(**memory_config) if memory_config else None
@@ -288,7 +288,7 @@ def main(res: str, req: str) -> dict:
 
         llm_node_1756046349071.next_node_ids = ['1756046662447']
         self.graph.add_node("1756046349071", llm_node_1756046349071)
-        # create answer node[id=1756046662447,title=直接回复]
+        # create answer node[id=1756046662447,title=direct reply]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '直接回复', 'type': 'answer', 'isInIteration': False, 'isInLoop': False, 'id': '1756046662447', 'parent_node_id': None})
         answer_node_1756046662447 = AnswerNode(
             answer="""{{#1756046349071.text#}}""",
@@ -300,7 +300,7 @@ def main(res: str, req: str) -> dict:
         answer_node_1756046662447.next_node_ids = []
         self.graph.add_node("1756046662447", answer_node_1756046662447)
 
-        # create llm node[id=1756046728919,title=不联网直接回答]
+        # create llm node[id=1756046728919,title=answer directly without web search]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '不联网直接回答', 'type': 'llm', 'isInIteration': False, 'isInLoop': False, 'id': '1756046728919', 'parent_node_id': None})
         memory_config = None
         memory = MemoryConfig(**memory_config) if memory_config else None
@@ -335,7 +335,7 @@ def main(res: str, req: str) -> dict:
 
         llm_node_1756046728919.next_node_ids = ['1756046787448']
         self.graph.add_node("1756046728919", llm_node_1756046728919)
-        # create answer node[id=1756046787448,title=直接回复 2]
+        # create answer node[id=1756046787448,title=direct reply 2]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '直接回复 2', 'type': 'answer', 'isInIteration': False, 'isInLoop': False, 'id': '1756046787448', 'parent_node_id': None})
         answer_node_1756046787448 = AnswerNode(
             answer="""{{#1756046728919.text#}}""",
@@ -346,7 +346,7 @@ def main(res: str, req: str) -> dict:
 
         answer_node_1756046787448.next_node_ids = []
         self.graph.add_node("1756046787448", answer_node_1756046787448)
-	        # create code node[id=1756189035885,title=代码执行 3]
+	        # create code node[id=1756189035885,title=code execution 3]
         common_args = self._fix_common_args({'desc': '', 'selected': False, 'title': '代码执行 3', 'type': 'code', 'variables': [{'variable': 'items', 'value_selector': ['1756023315127', 'output']}], 'isInIteration': False, 'isInLoop': False, 'id': '1756189035885', 'parent_node_id': None})
         code_node_1756189035885 = CodeNode(
             code=r"""

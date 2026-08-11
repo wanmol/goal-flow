@@ -1,20 +1,20 @@
-"""SkillOrchestrator：串起 Registry / Loader / Matcher / Adapter 的入口。
+"""SkillOrchestrator: the entry point that ties together Registry / Loader / Matcher / Adapter.
 
-PR1 范围（已完成）：
-- ``load_skills(skill_ids)`` 显式按 ID 加载
-- ``augment_prompt_with(base_prompt, skill_ids)`` 显式拼 prompt
+PR1 scope (done):
+- ``load_skills(skill_ids)`` explicit load by ID
+- ``augment_prompt_with(base_prompt, skill_ids)`` explicit prompt splicing
 
-PR2 范围（已加入）：
-- ``match(query, top_k, threshold)`` LLM 匹配
-- ``match_and_augment(query, base_prompt)`` 自动选 skill + 拼 prompt
-- 注入自定义 matcher（实现 ``Matcher`` 协议）
+PR2 scope (added):
+- ``match(query, top_k, threshold)`` LLM matching
+- ``match_and_augment(query, base_prompt)`` auto-select skill + splice prompt
+- Inject a custom matcher (implementing the ``Matcher`` protocol)
 
-典型用法（PR2 自动匹配版）::
+Typical usage (PR2 auto-matching version)::
 
     orch = SkillOrchestrator.create_default("./skills")
     augmented_prompt = orch.match_and_augment(
-        query="上海今天天气怎么样",
-        base_prompt="你是助手。",
+        query="What's the weather in Shanghai today",
+        base_prompt="You are an assistant.",
     )
 """
 from __future__ import annotations
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 class SkillOrchestrator:
-    """单 skills 根目录的协调器。多根目录场景下创建多个实例。"""
+    """Coordinator for a single skills root directory. Create multiple instances for multi-root scenarios."""
 
     def __init__(
         self,
@@ -55,7 +55,7 @@ class SkillOrchestrator:
         self._in_process_adapter = in_process_adapter or InProcessAdapter()
         ensure_default_prompt_registered()
 
-    # ───────────────── 工厂 ─────────────────
+    # ───────────────── Factory ─────────────────
 
     @classmethod
     def create_default(
@@ -70,7 +70,7 @@ class SkillOrchestrator:
             registry.discover()
         return cls(registry=registry, matcher=matcher)
 
-    # ───────────────── 属性 ─────────────────
+    # ───────────────── Properties ─────────────────
 
     @property
     def registry(self) -> SkillRegistry:
@@ -84,10 +84,10 @@ class SkillOrchestrator:
     def matcher(self) -> Matcher:
         return self._matcher
 
-    # ───────────────── 显式加载 (PR1) ─────────────────
+    # ───────────────── Explicit loading (PR1) ─────────────────
 
     def load_skills(self, skill_ids: list[str]) -> list[SkillManifest]:
-        """按 ID 加载 manifest（含 body）。未知/未启用/读失败的会被静默跳过。"""
+        """Load manifests (including body) by ID. Unknown/disabled/read-failed ones are silently skipped."""
         result: list[SkillManifest] = []
         for sid in skill_ids:
             manifest = self._registry.get(sid)
@@ -108,7 +108,7 @@ class SkillOrchestrator:
         manifests = self.load_skills(skill_ids)
         return self._prompt_adapter.append_to(base_prompt, manifests)
 
-    # ───────────────── 自动匹配 (PR2) ─────────────────
+    # ───────────────── Auto matching (PR2) ─────────────────
 
     def match(
         self,
@@ -117,7 +117,7 @@ class SkillOrchestrator:
         top_k: int = 3,
         threshold: float = 0.3,
     ) -> list[MatchResult]:
-        """按 query 匹配 skill。返回按 confidence 降序的 MatchResult 列表。"""
+        """Match skills by query. Return a list of MatchResult sorted by confidence descending."""
         manifests = self._registry.all(enabled_only=True)
         if not manifests:
             return []
@@ -136,7 +136,7 @@ class SkillOrchestrator:
         top_k: int = 3,
         threshold: float = 0.3,
     ) -> tuple[list[MatchResult], list[SkillManifest]]:
-        """匹配 + 加载 body。返回 (matches, manifests_with_body)。"""
+        """Match + load body. Return (matches, manifests_with_body)."""
         matches = self.match(query, top_k=top_k, threshold=threshold)
         if not matches:
             return [], []
@@ -151,23 +151,23 @@ class SkillOrchestrator:
         top_k: int = 3,
         threshold: float = 0.3,
     ) -> str:
-        """一站式：query → 自动匹配 → 加载 body → 拼到 base_prompt。
+        """One-stop: query → auto match → load body → splice into base_prompt.
 
-        ``executable`` 模式的 skill 不会拼 body（它走 tool 路径）；
-        ``prompt_only`` 和 ``hybrid`` 模式的 body 会拼进 prompt。
+        Skills in ``executable`` mode do not splice their body (they go the tool path);
+        the body of ``prompt_only`` and ``hybrid`` mode skills is spliced into the prompt.
         """
         _, manifests = self.match_and_load(query, top_k=top_k, threshold=threshold)
         prompt_manifests = [m for m in manifests if m.mode in ("prompt_only", "hybrid")]
         return self._prompt_adapter.append_to(base_prompt, prompt_manifests)
 
-    # ───────────────── 可执行 skill (PR3) ─────────────────
+    # ───────────────── Executable skill (PR3) ─────────────────
 
     def materialize_tools(self, manifests: list[SkillManifest]) -> list:
-        """把 ``executable`` / ``hybrid`` 模式的 manifest 转成 LangChain Tool 列表。
+        """Convert ``executable`` / ``hybrid`` mode manifests into a list of LangChain Tools.
 
-        ``prompt_only`` 模式的 manifest 会被跳过（它们走 augment_prompt 路径）。
-        单个 skill 失败（import 错 / 函数不存在）会被静默 skip + warn log，
-        不影响其它 skill。
+        ``prompt_only`` mode manifests are skipped (they go the augment_prompt path).
+        A single skill failure (import error / function missing) is silently skipped + warn logged,
+        without affecting other skills.
         """
         executable = [m for m in manifests if m.mode in ("executable", "hybrid")]
         if not executable:
@@ -181,10 +181,10 @@ class SkillOrchestrator:
         top_k: int = 3,
         threshold: float = 0.3,
     ) -> tuple[list[SkillManifest], list]:
-        """匹配 + 加载 + 编译 tools。返回 (manifests_with_body, langchain_tools)。
+        """Match + load + compile tools. Return (manifests_with_body, langchain_tools).
 
-        AgentRuntime 在 PR3 里用这个方法一次性拿到 prompt 增强所需的 manifests
-        和 tool 注入所需的 tools。
+        In PR3, AgentRuntime uses this method to obtain in one shot both the manifests needed for prompt
+        augmentation and the tools needed for tool injection.
         """
         _, manifests = self.match_and_load(query, top_k=top_k, threshold=threshold)
         if not manifests:
@@ -193,10 +193,10 @@ class SkillOrchestrator:
         return manifests, tools
 
     def augment_prompt(self, base_prompt: str, manifests: list[SkillManifest]) -> str:
-        """显式版本：把 prompt_only/hybrid 的 manifest 拼进 base_prompt。
+        """Explicit version: splice prompt_only/hybrid manifests into base_prompt.
 
-        与 match_and_augment 的区别是：调用方已经持有 manifests，
-        无需再跑匹配（避免和 ``match_and_materialize_tools`` 重复匹配）。
+        The difference from match_and_augment is that the caller already holds the manifests,
+        so no need to run matching again (avoids duplicate matching with ``match_and_materialize_tools``).
         """
         prompt_manifests = [m for m in manifests if m.mode in ("prompt_only", "hybrid")]
         return self._prompt_adapter.append_to(base_prompt, prompt_manifests)

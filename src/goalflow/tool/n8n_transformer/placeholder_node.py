@@ -1,10 +1,10 @@
-"""PlaceholderNode：n8n 转换时无对应 goalflow 节点的占位实现。
+"""PlaceholderNode: placeholder implementation for n8n nodes with no corresponding goalflow node during conversion.
 
-设计意图：
-- n8n 有成百上千种节点，goalflow 只覆盖核心子集。转换遇到不支持的类型时，
-  生成一个占位节点，保证整图结构完整、能编译、能实例化、能按边路由跑通。
-- 占位节点是纯透传：不做任何业务，只把 ``next_node_ids`` 作为 goto 返回。
-- 原始 n8n 类型与参数保留在 ``n8n_type`` / ``n8n_parameters`` 上，便于人工补齐。
+Design intent:
+- n8n has hundreds of node types, while goalflow only covers a core subset. When conversion encounters an unsupported type,
+  a placeholder node is generated to keep the whole graph structure complete, compilable, instantiable, and runnable along edges.
+- The placeholder node is a pure passthrough: it does no business logic, only returns ``next_node_ids`` as goto.
+- The original n8n type and parameters are kept on ``n8n_type`` / ``n8n_parameters`` for manual completion.
 """
 from __future__ import annotations
 
@@ -21,9 +21,9 @@ logger = get_logger(__name__)
 
 
 class PlaceholderNode(BaseNode):
-    """透传占位节点。落地 n8n 中 goalflow 未支持的节点类型。"""
+    """Passthrough placeholder node. Handles n8n node types not supported by goalflow."""
 
-    __node_type = WfNodeType.CODE  # 借用一个已有类型，避免 init_graph_data 特判
+    __node_type = WfNodeType.CODE  # Borrow an existing type to avoid special-casing in init_graph_data
 
     @property
     def node_type(self) -> WfNodeType:

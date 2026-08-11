@@ -8,7 +8,7 @@ from goalflow.monitor.memory_analyzer_final import RealisticMemoryAnalyzer
 
 router = APIRouter(prefix="/api/memory", tags=["内存监控-准确"])
 
-# 创建分析器实例
+# Create the analyzer instance
 _analyzer = None
 
 def get_analyzer():
@@ -24,13 +24,13 @@ async def accurate_memory_analysis(
     analyzer=Depends(get_analyzer)
 ):
     """
-    获取准确的内存分析报告
-    
-    使用多种方法综合估算Python对象内存占用，
-    避免asizeof和简单相加的误差。
+    Get an accurate memory analysis report
+
+    Combines multiple methods to estimate Python object memory usage,
+    avoiding the errors of asizeof and naive summation.
     """
     try:
-        # 清空缓存如果需要
+        # Clear the cache if needed
         if force_refresh:
             analyzer.cache.clear()
         
@@ -51,31 +51,31 @@ async def memory_efficiency_analysis(
     analyzer=Depends(get_analyzer)
 ):
     """
-    分析内存使用效率
-    
-    计算Python对象内存占进程总内存的比例，
-    识别内存使用效率问题。
+    Analyze memory usage efficiency
+
+    Calculates the ratio of Python object memory to the total process memory
+    to identify memory efficiency issues.
     """
     analyzer: RealisticMemoryAnalyzer = analyzer
     try:
-        # 多次采样分析
+        # Sample multiple times for analysis
         import time
-        
+
         samples = []
         for _ in range(3):
             report = analyzer.get_memory_analysis(method='balanced')
             efficiency = report['comparison']['efficiency_percentage']
-            
+
             samples.append({
                 'timestamp': report['timestamp'],
                 'efficiency': efficiency,
                 'actual_mb': report['process_memory']['rss_mb'],
                 'estimated_mb': report['analysis']['estimated_total_mb']
             })
-            
-            time.sleep(1)  # 间隔1秒
-        
-        # 计算平均值
+
+            time.sleep(1)  # 1-second interval
+
+        # Compute the average
         avg_efficiency = sum(s['efficiency'] for s in samples) / len(samples)
         
         return {
@@ -91,7 +91,7 @@ async def memory_efficiency_analysis(
         raise HTTPException(status_code=500, detail=f"效率分析失败: {str(e)}")
 
 def _get_efficiency_recommendations(self, efficiency: float) -> List[str]:
-    """根据效率给出优化建议"""
+    """Give optimization suggestions based on efficiency"""
     recommendations = []
     
     if efficiency < 30:
@@ -122,17 +122,17 @@ async def memory_trend_analysis(
     analyzer=Depends(get_analyzer)
 ):
     """
-    分析内存使用趋势
-    
-    多次采样分析内存变化趋势。
+    Analyze memory usage trends
+
+    Samples multiple times to analyze memory change trends.
     """
     try:
         import time
-        
+
         trends = []
         for i in range(samples):
             report = analyzer.get_memory_analysis(method='fast')
-            
+
             trends.append({
                 'sample': i + 1,
                 'timestamp': report['timestamp'],
@@ -141,11 +141,11 @@ async def memory_trend_analysis(
                 'efficiency': report['comparison']['efficiency_percentage'],
                 'object_count': report['analysis']['object_count']
             })
-            
-            if i < samples - 1:  # 最后一次不等待
+
+            if i < samples - 1:  # do not wait after the last sample
                 time.sleep(interval_seconds)
-        
-        # 分析趋势
+
+        # Analyze the trend
         if len(trends) >= 2:
             first = trends[0]
             last = trends[-1]

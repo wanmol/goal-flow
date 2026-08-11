@@ -11,64 +11,64 @@ import threading
 
 class RealisticMemoryAnalyzer:
     """
-    现实的内存分析器 - 综合多种方法，提供准确估算
-    
-    关键理念：
-    1. 不追求绝对准确，而是提供合理范围
-    2. 重点关注趋势和相对值
-    3. 识别内存异常模式
-    4. 避免过度计算导致的性能问题
+    Realistic memory analyzer - combines multiple methods to provide accurate estimates
+
+    Key principles:
+    1. Do not pursue absolute accuracy; provide a reasonable range instead
+    2. Focus on trends and relative values
+    3. Identify abnormal memory patterns
+    4. Avoid performance issues caused by over-computation
     """
-    
+
     def __init__(self, app_name: str = "App"):
         self.app_name = app_name
         self.pid = os.getpid()
         self.process = psutil.Process(self.pid)
         self.cache = {}
-        self.cache_timeout = 30  # 缓存30秒
-        
+        self.cache_timeout = 30  # cache for 30 seconds
+
     def get_memory_analysis(self, method: str = 'balanced') -> Dict:
         """
-        获取内存分析（多种方法综合）
-        
+        Get memory analysis (combining multiple methods)
+
         Args:
-            method: 'fast' - 快速估算
-                   'balanced' - 平衡准确性和性能
-                   'accurate' - 更准确但较慢
-        
+            method: 'fast' - quick estimate
+                   'balanced' - balances accuracy and performance
+                   'accurate' - more accurate but slower
+
         Returns:
-            内存分析报告
+            Memory analysis report
         """
         gc.collect()
-        
-        # 获取实际进程内存
+
+        # Get actual process memory
         actual_mem = self._get_actual_memory()
-        
-        # 根据方法选择分析策略
+
+        # Choose analysis strategy based on method
         if method == 'fast':
             analysis = self._fast_analysis()
             accuracy = 'low'
-            
+
         elif method == 'accurate':
             analysis = self._accurate_analysis()
             accuracy = 'high'
-            
+
         else:  # balanced
             analysis = self._balanced_analysis()
             accuracy = 'medium'
-        
-        # 计算差异和效率
+
+        # Calculate difference and efficiency
         estimated = analysis.get('estimated_total_bytes', 0)
         actual = actual_mem['rss_bytes']
-        
+
         if actual > 0:
             efficiency = (estimated / actual) * 100
             difference = actual - estimated
         else:
             efficiency = 0
             difference = 0
-        
-        # 构建报告
+
+        # Build report
         report = {
             'timestamp': datetime.now().isoformat(),
             'app_name': self.app_name,
@@ -94,7 +94,7 @@ class RealisticMemoryAnalyzer:
         return report
     
     def _get_actual_memory(self) -> Dict:
-        """获取实际进程内存"""
+        """Get actual process memory"""
         mem_info = self.process.memory_info()
         
         return {
@@ -106,10 +106,10 @@ class RealisticMemoryAnalyzer:
         }
     
     def _fast_analysis(self) -> Dict:
-        """快速分析（基于抽样）"""
+        """Fast analysis (based on sampling)"""
         all_objects = gc.get_objects()
         total_objects = len(all_objects)
-        
+
         if total_objects == 0:
             return {
                 'estimated_total_bytes': 0,
@@ -117,8 +117,8 @@ class RealisticMemoryAnalyzer:
                 'method': 'fast_sampling',
                 'sample_rate': 0
             }
-        
-        # 抽样率：对象越多，抽样率越低
+
+        # Sampling rate: the more objects, the lower the sampling rate
         if total_objects > 100000:
             sample_rate = 0.01  # 1%
         elif total_objects > 10000:
@@ -127,11 +127,11 @@ class RealisticMemoryAnalyzer:
             sample_rate = 0.1   # 10%
         else:
             sample_rate = 1.0   # 100%
-        
+
         sample_size = max(100, int(total_objects * sample_rate))
         sample_size = min(sample_size, total_objects)
-        
-        # 随机抽样
+
+        # Random sampling
         import random
         sampled_indices = random.sample(range(total_objects), sample_size)
         
@@ -147,14 +147,14 @@ class RealisticMemoryAnalyzer:
             except:
                 continue
         
-        # 估算总数
+        # Estimate the total
         avg_size = total_sampled_size / sample_size if sample_size > 0 else 0
         estimated_total = avg_size * total_objects
-        
-        # 类型统计（基于抽样）
+
+        # Type statistics (based on sampling)
         type_stats = []
         for obj_type, count in type_counter.most_common(10):
-            # 估算该类型总数
+            # Estimate the total count of this type
             estimated_type_count = (count / sample_size) * total_objects
             type_stats.append({
                 'type': obj_type,
@@ -174,14 +174,14 @@ class RealisticMemoryAnalyzer:
         }
     
     def _balanced_analysis(self) -> Dict:
-        """平衡分析（分层抽样）"""
+        """Balanced analysis (stratified sampling)"""
         all_objects = gc.get_objects()
         total_objects = len(all_objects)
-        
+
         if total_objects == 0:
             return {'estimated_total_bytes': 0, 'object_count': 0}
-        
-        # 将对象按类型分组
+
+        # Group objects by type
         objects_by_type = defaultdict(list)
         for obj in all_objects:
             try:
@@ -189,15 +189,15 @@ class RealisticMemoryAnalyzer:
                 objects_by_type[obj_type].append(obj)
             except:
                 continue
-        
-        # 对每种类型进行抽样
+
+        # Sample each type
         total_estimated = 0
         type_stats = []
-        
+
         for obj_type, objects in objects_by_type.items():
             type_count = len(objects)
-            
-            # 确定抽样大小
+
+            # Determine sample size
             if type_count > 1000:
                 sample_size = 100
             elif type_count > 100:
@@ -206,8 +206,8 @@ class RealisticMemoryAnalyzer:
                 sample_size = 10
             else:
                 sample_size = type_count
-            
-            # 抽样计算平均大小
+
+            # Sample to compute the average size
             import random
             if sample_size < type_count:
                 sampled = random.sample(objects, sample_size)
@@ -223,9 +223,9 @@ class RealisticMemoryAnalyzer:
             
             avg_size = type_total / len(sampled) if sampled else 0
             type_estimated = avg_size * type_count
-            
+
             total_estimated += type_estimated
-            
+
             type_stats.append({
                 'type': obj_type,
                 'count': type_count,
@@ -234,8 +234,8 @@ class RealisticMemoryAnalyzer:
                 'avg_bytes': avg_size,
                 'sample_size': len(sampled)
             })
-        
-        # 排序
+
+        # Sort
         type_stats.sort(key=lambda x: x['estimated_bytes'], reverse=True)
         
         return {
@@ -248,47 +248,47 @@ class RealisticMemoryAnalyzer:
         }
     
     def _accurate_analysis(self) -> Dict:
-        """准确分析（尝试避免重复计算）"""
+        """Accurate analysis (tries to avoid double counting)"""
         all_objects = gc.get_objects()
-        
-        # 使用已访问集合避免重复
+
+        # Use a visited set to avoid duplicates
         visited_ids: Set[int] = set()
         type_stats = defaultdict(lambda: {'count': 0, 'size': 0})
         total_size = 0
-        
-        # 先处理简单对象
+
+        # Process simple objects first
         for obj in all_objects:
             obj_id = id(obj)
             if obj_id in visited_ids:
                 continue
-            
+
             obj_type = type(obj).__name__
-            
-            # 对于容器对象，特殊处理
+
+            # Handle container objects specially
             if self._is_complex_container(obj):
-                # 标记为已访问，稍后处理
+                # Mark as visited, process later
                 continue
-            
+
             try:
                 obj_size = sys.getsizeof(obj)
                 visited_ids.add(obj_id)
-                
+
                 total_size += obj_size
                 type_stats[obj_type]['count'] += 1
                 type_stats[obj_type]['size'] += obj_size
             except:
                 continue
-        
-        # 处理容器对象（避免深度递归）
+
+        # Process container objects (avoid deep recursion)
         container_stats = self._analyze_containers_smart(all_objects, visited_ids)
-        
-        # 合并结果
+
+        # Merge results
         for obj_type, data in container_stats.items():
             type_stats[obj_type]['count'] += data['count']
             type_stats[obj_type]['size'] += data['size']
             total_size += data['size']
-        
-        # 转换为列表
+
+        # Convert to a list
         stats_list = []
         for obj_type, data in type_stats.items():
             stats_list.append({
@@ -312,7 +312,7 @@ class RealisticMemoryAnalyzer:
         }
     
     def _is_complex_container(self, obj: Any) -> bool:
-        """判断是否为复杂容器（需要特殊处理）"""
+        """Determine whether the object is a complex container (needs special handling)"""
         if isinstance(obj, (list, tuple, dict, set)):
             return True
         if hasattr(obj, '__dict__') and len(obj.__dict__) > 0:
@@ -320,43 +320,43 @@ class RealisticMemoryAnalyzer:
         return False
     
     def _analyze_containers_smart(self, all_objects: List, visited_ids: Set[int]) -> Dict:
-        """智能分析容器对象"""
+        """Smart analysis of container objects"""
         container_stats = defaultdict(lambda: {'count': 0, 'size': 0})
-        
-        # 按类型分组容器
+
+        # Group containers by type
         containers_by_type = defaultdict(list)
         for obj in all_objects:
             obj_id = id(obj)
             if obj_id in visited_ids:
                 continue
-            
+
             if self._is_complex_container(obj):
                 obj_type = type(obj).__name__
                 containers_by_type[obj_type].append(obj)
-        
-        # 对每种容器类型进行分析
+
+        # Analyze each container type
         for obj_type, containers in containers_by_type.items():
             if len(containers) > 100:
-                # 大量容器，抽样分析
+                # Many containers, sample for analysis
                 import random
                 sample = random.sample(containers, min(100, len(containers)))
             else:
                 sample = containers
-            
+
             type_total_size = 0
             for container in sample:
                 try:
-                    # 计算容器本身大小（不递归）
+                    # Calculate the container's own size (no recursion)
                     container_size = sys.getsizeof(container)
                     container_id = id(container)
-                    
+
                     if container_id not in visited_ids:
                         visited_ids.add(container_id)
                         type_total_size += container_size
                 except:
                     continue
-            
-            # 估算总数
+
+            # Estimate the total
             avg_size = type_total_size / len(sample) if sample else 0
             total_estimated = avg_size * len(containers)
             
@@ -366,7 +366,7 @@ class RealisticMemoryAnalyzer:
         return container_stats
     
     def _interpret_efficiency(self, efficiency: float) -> str:
-        """解释内存效率"""
+        """Interpret memory efficiency"""
         if efficiency > 80:
             return "内存使用效率很高，对象内存占进程内存的大部分"
         elif efficiency > 60:
@@ -379,7 +379,7 @@ class RealisticMemoryAnalyzer:
             return "内存使用效率很低，建议优化内存使用"
     
     def track_memory_trend(self, interval: int = 60, duration: int = 3600):
-        """跟踪内存趋势"""
+        """Track memory trend"""
         trends = []
         start_time = time.time()
         

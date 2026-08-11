@@ -1,14 +1,14 @@
 """
-PromptRegistry：三层 prompt 加载（Langfuse → 本地文件 → 内置 fallback）。
+PromptRegistry: three-layer prompt loading (Langfuse -> local file -> built-in fallback).
 
-设计要点：
-- **三层 fallback**：依次尝试 Langfuse Prompt Management、本地模板文件、注册时给的 Python callable
-- **任一层失败不影响下一层**：网络抖动 / Langfuse 配置错误 / 模板文件缺失，统统不会让业务挂掉
-- **缓存**：成功命中后按 (name, source) 缓存；强制刷新用 ``invalidate(name)``
-- **变量替换**：Jinja2 引擎；语法兼容 Langfuse Prompt Management 默认的 ``{{ var }}``
-- **fallback_callable**：注册时可以传一个纯 Python 函数（签名 ``(**vars) -> str``），
-  作为最低层兜底 —— 业务可以把原来的 ``_build_system_prompt`` 函数直接挂上来，
-  做到"零行为差异迁移"
+Design points:
+- **Three-layer fallback**: tries Langfuse Prompt Management, the local template file, and the Python callable given at registration, in order
+- **A failure in any layer does not affect the next**: network jitter / Langfuse misconfiguration / missing template file will never take down the business
+- **Cache**: after a successful hit, cached by (name, source); force a refresh with ``invalidate(name)``
+- **Variable substitution**: Jinja2 engine; syntax compatible with Langfuse Prompt Management's default ``{{ var }}``
+- **fallback_callable**: at registration you can pass a pure Python function (signature ``(**vars) -> str``)
+  as the lowest-layer safety net -- the business can hang its original ``_build_system_prompt`` function
+  directly onto it, achieving a "zero-behavior-difference migration"
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ SOURCE_FALLBACK = "fallback"
 
 @dataclass
 class PromptSpec:
-    """单个 prompt 的三层注册信息。"""
+    """Three-layer registration info for a single prompt."""
 
     name: str
     langfuse_name: Optional[str] = None
@@ -39,9 +39,9 @@ class PromptSpec:
 
 
 class PromptRegistry:
-    """三层 prompt 加载器。
+    """Three-layer prompt loader.
 
-    全局单例（``HARNESS_PROMPTS``）；业务在启动时 register，运行时 render。
+    Global singleton (``HARNESS_PROMPTS``); the business registers at startup and renders at runtime.
     """
 
     def __init__(self) -> None:
@@ -50,7 +50,7 @@ class PromptRegistry:
         self._metric_emitter: Optional[Callable[..., None]] = None
 
     def set_metric_emitter(self, emitter: Callable[..., None]) -> None:
-        """注入 metric 函数，签名 ``emitter(metric_name, **labels)``。"""
+        """Inject the metric function, signature ``emitter(metric_name, **labels)``."""
         self._metric_emitter = emitter
 
     def register(
@@ -61,7 +61,7 @@ class PromptRegistry:
         local_template_path: Optional[str] = None,
         langfuse_name: Optional[str] = None,
     ) -> None:
-        """注册一个 prompt 的三层来源。"""
+        """Register the three-layer sources for a prompt."""
         with self._lock:
             spec = PromptSpec(
                 name=name,
@@ -77,10 +77,11 @@ class PromptRegistry:
         )
 
     def render(self, prompt_name: str, **template_vars) -> str:
-        """三层加载并渲染。返回最终 prompt 字符串。
+        """Load and render across the three layers. Returns the final prompt string.
 
-        第一个参数 ``prompt_name`` 是注册名；``**template_vars`` 传给各层模板变量
-        （可与变量名 ``name`` 等任意关键字共存，不与本参数冲突）。
+        The first argument ``prompt_name`` is the registration name; ``**template_vars`` are passed to each
+        layer's template variables (can coexist with any keyword such as the variable name ``name``, without
+        conflicting with this parameter).
         """
         spec = self._specs.get(prompt_name)
         if spec is None:
@@ -127,7 +128,7 @@ class PromptRegistry:
         return ""
 
     def invalidate(self, name: Optional[str] = None) -> None:
-        """清空缓存。不传 name 清全部。"""
+        """Clear the cache. Clears everything if no name is passed."""
         with self._lock:
             if name is None:
                 for s in self._specs.values():
@@ -136,7 +137,7 @@ class PromptRegistry:
                 self._specs[name]._cached_template.clear()
 
     def reset(self) -> None:
-        """清空全部 register 状态。单测/调试使用。"""
+        """Clear all register state. For unit tests / debugging."""
         with self._lock:
             self._specs.clear()
         self._metric_emitter = None
@@ -150,7 +151,7 @@ class PromptRegistry:
             logger.warning(f"PromptRegistry._emit({metric!r}) failed: {e}")
 
     def _render_langfuse(self, spec: PromptSpec, vars: dict) -> Optional[str]:
-        """从 Langfuse Prompt Management 拉模板并渲染。None 表示该层未命中。"""
+        """Pull the template from Langfuse Prompt Management and render it. None means this layer missed."""
         try:
             from langfuse import get_client
         except ImportError:
@@ -171,7 +172,7 @@ class PromptRegistry:
             return None
 
     def _render_local(self, spec: PromptSpec, vars: dict) -> Optional[str]:
-        """从本地 j2 文件加载模板并渲染。"""
+        """Load the template from a local j2 file and render it."""
         path = Path(spec.local_template_path)
         if not path.is_absolute():
             path = Path.cwd() / path

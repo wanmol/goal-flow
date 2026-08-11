@@ -8,7 +8,7 @@ from goalflow.config import get_logger
 
 logger = get_logger(__name__)
 
-# 环境配置
+# Environment configuration
 class Config:
     def __init__(self):
         self.load_config()
@@ -20,14 +20,14 @@ class Config:
         self.MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
         self.MYSQL_DB = os.getenv("MYSQL_DB")
 
-        # 连接池配置
+        # Connection pool config
         self.POOL_SIZE = int(os.getenv("POOL_SIZE", 10))
         self.MAX_OVERFLOW = int(os.getenv("MAX_OVERFLOW", 20))
         self.POOL_RECYCLE = int(os.getenv("POOL_RECYCLE", 3600))
         self.POOL_PRE_PING = os.getenv("POOL_PRE_PING", "True") == "True"
         self.POOL_TIMEOUT = int(os.getenv("POOL_TIMEOUT", 30))
 
-        # 新增Redis配置
+        # Added Redis config
         self.REDIS_ENABLED = os.getenv("REDIS_ENABLED", "False") == "True"
         self.REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
         self.REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
@@ -42,11 +42,11 @@ class Config:
         self.REDIS_CLUSTERS = os.getenv("REDIS_CLUSTERS")
         self.REDIS_MODEL = os.getenv("REDIS_MODEL")
 
-        # 业务
+        # Business
         self.MESSAGES_PER_PAGE = int(os.getenv("MESSAGES_PER_PAGE", 25))
 
 
-# 数据库引擎管理
+# Database engine management
 class Database:
     _engine = None
     _session_factory = None
@@ -99,18 +99,18 @@ class Database:
     @classmethod
     def health_check(cls) -> bool:
         """
-        数据库健康检查
+        Database health check
 
         Returns:
-            dict: 健康检查结果
+            dict: health check result
         """
         try:
             if not cls._engine:
                 cls.init()
 
-            # 测试数据库连接
+            # Test the database connection
             with cls.get_session() as session:
-                # 执行简单的查询来测试连接
+                # Execute a simple query to test the connection
                 result = session.execute(text("SELECT 1 as health_check"))
                 row = result.fetchone()
 
@@ -126,15 +126,15 @@ class Database:
     @classmethod
     def get_engine(cls):
         """
-        获取 SQLAlchemy 引擎（包含连接池）
-        
-        这个方法提供对底层 SQLAlchemy 引擎的访问，主要用于：
-        - LangGraph checkpoint 连接
-        - 需要原始连接的场景
-        - 连接池监控和管理
-        
+        Get the SQLAlchemy engine (including the connection pool)
+
+        This method provides access to the underlying SQLAlchemy engine, mainly used for:
+        - LangGraph checkpoint connections
+        - Scenarios requiring a raw connection
+        - Connection pool monitoring and management
+
         Returns:
-            Engine: SQLAlchemy 引擎实例（包含连接池配置）
+            Engine: the SQLAlchemy engine instance (including connection pool config)
         """
         if cls._engine is None:
             cls.init()

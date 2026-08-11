@@ -142,7 +142,7 @@ class ClassifierNode(BaseNode):
 
         prompt_messages: list[LLmNodePromptTemplate] = []
 
-        # TODO 历史消息待处理
+        # TODO history messages still to be handled
         system_prompt_messages = LLmNodePromptTemplate(
             role=PromptMessageRole.SYSTEM.value,
             text=QUESTION_CLASSIFIER_SYSTEM_PROMPT.format(histories=""),

@@ -37,7 +37,7 @@ class StartNode(BaseNode):
         super().__init__(**kwargs)
         self.wf_inputs = wf_inputs
     
-    # TODO  需要处理conversation_id,workflow_id,workflow_run_id等
+    # TODO need to handle conversation_id, workflow_id, workflow_run_id, etc.
     def call(self, state: GenericState) -> NodeOutput:
         """
         Initialize workflow state with input variables.
@@ -63,7 +63,7 @@ class StartNode(BaseNode):
                     raise ValueError(f"Input variable {input.variable} must have options")
                 
             if input.variable not in input_variables:
-                # 处理默认值
+                # Handle the default value
                 if input.default is not None:
                     input_variables[input.variable] = input.default
                 continue
@@ -80,12 +80,12 @@ class StartNode(BaseNode):
             if input.type == "array[file]" and not all(isinstance(v, dict) for v in value):
                 raise ValueError(f"Input variable {input.variable} must be a file array")
 
-        # dify中间节点取query 等系统变量时，会拼上开始节点前缀
+        # In dify, intermediate nodes prepend the start node prefix when fetching system variables such as query
         outputs = {"sys.query" : state.get("sys_query")}
-        # 需要将用户的输入更新到开始节点， dify配置文件中后续节点访问用户输入是带开始节点前缀的
+        # The user's input needs to be updated into the start node; in dify config files, later nodes access user input with the start node prefix
         outputs.update(input_variables)
 
-        # 从数据库查询会话变量，初始化state中的conversation_variables
+        # Query conversation variables from the database and initialize conversation_variables in the state
         conversation_vars = {}
         conversation_id = state.get("sys_conversation_id")
         if conversation_id is not None:
@@ -107,16 +107,16 @@ class StartNode(BaseNode):
         conversation_id: str ,
     ) :
         """
-        从数据库查询的conversation_variables
+        conversation_variables queried from the database
 
         Args:
-            state: 当前工作流状态
+            state: current workflow state
         Returns:
             conversation_vars ,
         """
         conversation_vars = {}
         
-        # conversation_variables_obj: 从数据库查询的会话变量对象
+        # conversation_variables_obj: the conversation variable object queried from the database
         conversation_variables_obj = (
             WorkflowConversationVariablesService.get_by_conversation_id(
                 conversation_id=conversation_id
@@ -130,7 +130,7 @@ class StartNode(BaseNode):
                 
         return conversation_vars  
     
-    # 如果output太长， 某些日志系统，比如阿里云sls会截断日志信息，导致json结构被破坏，不好做数据分析
+    # If output is too long, some logging systems, such as Alibaba Cloud SLS, will truncate log messages, breaking the json structure and hindering data analysis
     def truncate_output_value(self, value : any) :
         if not value:
             return value
@@ -140,7 +140,7 @@ class StartNode(BaseNode):
         
         result = {}
         for key in value:
-            # 会话变量可能会很长，需要截断处理。仅仅输出log截断
+            # Conversation variables can be very long and need to be truncated. Only truncate for log output
             if key != STATE_VARIABLE_TYPE_CONVERSATION:
                 result[key] = value[key]
                 

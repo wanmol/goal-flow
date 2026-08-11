@@ -7,7 +7,7 @@ import hashlib
 
 from fastapi import  HTTPException, Request, status
 
-# TODO 以后考虑加密存储
+# TODO consider encrypted storage in the future
 apikey_workflow_def_map = {
 
     #"2999a65aa67e37253623075d60796f9a": WorkflowCarbonEmissions,

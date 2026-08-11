@@ -1,14 +1,14 @@
-"""StreamingBridgeMiddleware：从 RunnableConfig 把 stream callback 桥接到 token 推送。
+"""StreamingBridgeMiddleware: bridge the stream callback from RunnableConfig to token pushing.
 
-设计意图：替代 ``AgentRuntime`` 用 ContextVar 持有 ``stream_callback`` 的老做法。
-新做法是 LangChain 标准的"配置随调用走"——业务在 ``Agent.run(state, query, config=...)``
-时把 callback 放进 ``RunnableConfig.configurable["stream_callback"]``，中间件读出来。
+Design intent: replaces ``AgentRuntime``'s old approach of holding ``stream_callback`` via a ContextVar.
+The new approach is LangChain's standard "config travels with the call" -- during ``Agent.run(state, query, config=...)``
+the business puts the callback into ``RunnableConfig.configurable["stream_callback"]``, and the middleware reads it out.
 
-工作机制：``after_model`` 钩子读出 response 末尾的 AIMessage，按 token 拆分推送。
-真正的 token 级流式（每个 chunk 推一次）需要 graph 用 ``.astream(stream_mode='messages')``
-驱动；本 middleware 提供配套的 callback 读取与触发逻辑。
+Mechanism: the ``after_model`` hook reads out the AIMessage at the end of the response and pushes it split by token.
+True token-level streaming (pushing once per chunk) requires the graph to be driven with ``.astream(stream_mode='messages')``;
+this middleware provides the accompanying callback reading and triggering logic.
 
-业务用法::
+Business usage::
 
     def on_token(text: str) -> None:
         print(text, end="", flush=True)
@@ -35,7 +35,7 @@ StreamCallback = Callable[[str], None]
 
 
 def _extract_text(content: Any) -> str:
-    """归一化 AIMessage.content 为字符串（兼容 list-of-dict 形态）。"""
+    """Normalize AIMessage.content to a string (compatible with the list-of-dict form)."""
     if content is None:
         return ""
     if isinstance(content, str):
@@ -57,13 +57,13 @@ def _extract_text(content: Any) -> str:
 class StreamingBridgeMiddleware(
     AgentMiddleware[ContextAgentState, ContextT, ResponseT]
 ):
-    """把 model 输出推到 ``RunnableConfig.configurable["stream_callback"]``。
+    """Push model output to ``RunnableConfig.configurable["stream_callback"]``.
 
-    构造参数：
-    - ``config_key``：从 ``runtime.config["configurable"][config_key]`` 读 callback；
-      默认 ``"stream_callback"``
-    - ``push_on``：``"after_model"`` 触发时机（默认）。设为 ``"none"`` 可以禁用自动推送
-      （仅做 callback 注入到 state，业务自己驱动）
+    Constructor parameters:
+    - ``config_key``: read the callback from ``runtime.config["configurable"][config_key]``;
+      default ``"stream_callback"``
+    - ``push_on``: ``"after_model"`` trigger timing (default). Set to ``"none"`` to disable auto-pushing
+      (only inject the callback into state, driven by the business itself)
     """
 
     def __init__(
@@ -100,7 +100,7 @@ class StreamingBridgeMiddleware(
         last = messages[-1]
         if not isinstance(last, AIMessage):
             return None
-        # 跳过纯 tool_call（无文本内容）
+        # Skip pure tool_call (no text content)
         if getattr(last, "tool_calls", None) and not last.content:
             return None
         text = _extract_text(last.content)

@@ -1,6 +1,6 @@
-"""SkillRegistry：扫描 skills 根目录，解析 SKILL.md frontmatter，建立索引（渐进披露第一阶段）。
+"""SkillRegistry: scan the skills root directory, parse SKILL.md frontmatter, and build an index (progressive disclosure, stage one).
 
-约定的目录结构（与 Anthropic Agent Skills 规范一致）::
+The agreed directory structure (consistent with the Anthropic Agent Skills spec)::
 
     skills/
     ├── weather_query/
@@ -12,10 +12,10 @@
     └── product_search/
         └── SKILL.md
 
-渐进披露：
-- ``discover()`` 只读 YAML frontmatter，不读 markdown body
-- markdown body 由 ``SkillLoader.load_body(skill_id)`` 按需加载
-- 多次 discover() 是幂等的；``reload()`` 基于 mtime 增量更新
+Progressive disclosure:
+- ``discover()`` only reads YAML frontmatter, not the markdown body
+- the markdown body is loaded on demand by ``SkillLoader.load_body(skill_id)``
+- multiple discover() calls are idempotent; ``reload()`` does incremental updates based on mtime
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ SKILL_FILENAME = "SKILL.md"
 
 
 class SkillRegistry:
-    """SKILL.md 索引。线程不安全；同进程多 Runtime 共享时由调用方加锁或用全局单例。"""
+    """SKILL.md index. Not thread-safe; when sharing across multiple Runtimes in the same process, the caller should lock or use a global singleton."""
 
     def __init__(self, skills_dir: str | Path):
         self._skills_dir = Path(skills_dir).expanduser().resolve()
@@ -45,7 +45,7 @@ class SkillRegistry:
         return self._skills_dir
 
     def discover(self) -> int:
-        """全量扫描；返回成功加载的 skill 数。"""
+        """Full scan; return the number of skills successfully loaded."""
         self._manifests.clear()
         self._mtimes.clear()
 
@@ -79,7 +79,7 @@ class SkillRegistry:
         return manifests
 
     def reload(self) -> int:
-        """基于 mtime 增量扫描；返回本次变更数（新增 + 修改 + 删除）。"""
+        """Incremental scan based on mtime; return the number of changes this time (additions + modifications + deletions)."""
         if not self._skills_dir.exists():
             n = len(self._manifests)
             self._manifests.clear()
@@ -95,7 +95,7 @@ class SkillRegistry:
                 current[str(f)] = f
 
         changes = 0
-        # 删除
+        # Deletions
         for path in list(self._mtimes.keys()):
             if path not in current:
                 skill_id = Path(path).parent.name
@@ -103,7 +103,7 @@ class SkillRegistry:
                 self._mtimes.pop(path, None)
                 changes += 1
 
-        # 新增 / 修改
+        # Additions / modifications
         for path_str, path in current.items():
             mtime = path.stat().st_mtime
             if self._mtimes.get(path_str) == mtime:
@@ -117,7 +117,7 @@ class SkillRegistry:
         return changes
 
     def has_changes(self) -> bool:
-        """快速判断是否需要 reload（不真正解析）。"""
+        """Quickly determine whether a reload is needed (without actually parsing)."""
         if not self._skills_dir.exists():
             return bool(self._manifests)
         current = set()
@@ -189,7 +189,7 @@ class SkillRegistry:
 # ───────────────── helpers ─────────────────
 
 def _extract_frontmatter(text: str) -> Optional[str]:
-    """返回 YAML frontmatter 文本（不含 ``---`` 分隔符）；无 frontmatter 返回 None。"""
+    """Return the YAML frontmatter text (without the ``---`` separators); return None if there is no frontmatter."""
     stripped = text.lstrip()
     if not stripped.startswith("---"):
         return None
@@ -200,7 +200,7 @@ def _extract_frontmatter(text: str) -> Optional[str]:
 
 
 def extract_body(text: str) -> str:
-    """从 SKILL.md 全文里取出 markdown body（不含 frontmatter）。"""
+    """Extract the markdown body (without frontmatter) from the full SKILL.md text."""
     stripped = text.lstrip()
     if not stripped.startswith("---"):
         return stripped

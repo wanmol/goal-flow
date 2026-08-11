@@ -6,7 +6,7 @@ class ContextAgentState(AgentState):
     sys_conversation_id: Optional[str]
     sys_parent_conversation_id: Optional[str]
     
-    # 子agent会话id【可选】  如果没有传递，默认为sys_conversation_id + "_" + biz_id
+    # Subagent conversation id [optional]. If not provided, defaults to sys_conversation_id + "_" + biz_id
     sys_sub_conversation_id: Optional[str]
     
     sys_user_id: str

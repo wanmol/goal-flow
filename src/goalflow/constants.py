@@ -28,7 +28,7 @@ class WfNodeType(Enum):
     DOCUMENT_EXTRACTOR  = "document-extractor"
     
     #===============below is custom type==============
-    # 自然语言转sql并执行数据库查询
+    # Convert natural language to SQL and run the database query
     NL_DB_QUERY         = "nl_db_query"
     
     @staticmethod
@@ -175,7 +175,7 @@ class PromptMessageRole(Enum):
     
 class ToolProviderType(Enum):
     """
-    Tool节点调用外部组件的类型
+    Type of external component invoked by the Tool node
     """
     PLUGIN = "plugin"
     BUILT_IN = "builtin"
@@ -216,7 +216,7 @@ WF_TYPE_WORKFLOW = sys.intern("workflow")
 RESPONSE_MODE_STREAMING = "streaming"
 RESPONSE_MODE_BLOCKING = "blocking"
 
-# 承接上游调用的request_id, 方便分布式链路跟踪
+# Carries the request_id from the upstream call, to facilitate distributed tracing
 WF_REQUEST_ID_HEADER_NAME = sys.intern("X-Request-Id")
 
 UPSTREAM_TRACE_ID_HEADER_NAME = sys.intern("X-Trace-Id")
@@ -231,7 +231,7 @@ THINK_END_TAG = "</think>"
 
 THINKING_CONTENT_KEY = "reasoning_content"
 
-# 设置redis中stop标记的过期时间
+# Set the expiration time for the stop marker in redis
 CONST_REDIS_STOP_MARK_TIMEOUT = 60
 
 CHAT_COMPLETION_REQUEST_REDIS_KEY_FMT = "chat_completion_request:{}"

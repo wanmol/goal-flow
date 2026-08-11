@@ -1,24 +1,24 @@
-"""n8n 工作流 JSON 的类型化数据结构。
+"""Typed data structures for n8n workflow JSON.
 
-n8n 导出格式(顶层)::
+n8n export format (top level)::
 
     {
       "name": "My Workflow",
       "nodes": [ {node}, ... ],
-      "connections": { "<源节点名>": {"main": [[{target}, ...], ...]} },
+      "connections": { "<source node name>": {"main": [[{target}, ...], ...]} },
       ...
     }
 
-单个 node::
+A single node::
 
     {
-      "parameters": {...},          # 节点专属配置
+      "parameters": {...},          # node-specific configuration
       "id": "uuid",
-      "name": "HTTP Request",       # 显示名,connections 用它作键(不是 id)
+      "name": "HTTP Request",       # display name; connections use it as the key (not id)
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [x, y],
-      "disabled": false             # 可选
+      "disabled": false             # optional
     }
 """
 from __future__ import annotations
@@ -27,10 +27,10 @@ from typing import Any, Dict, List, Optional
 
 
 class N8nConnectionTarget:
-    """connections 里的一个目标端点。
+    """A target endpoint in connections.
 
-    对应 ``{"node": "<目标节点名>", "type": "main", "index": 0}``。
-    n8n 用节点**名称**引用目标,解析时再解析成节点 id。
+    Corresponds to ``{"node": "<target node name>", "type": "main", "index": 0}``.
+    n8n references the target by node **name**; it is resolved to a node id during parsing.
     """
 
     __slots__ = ["node", "type", "index"]
@@ -50,7 +50,7 @@ class N8nConnectionTarget:
 
 
 class N8nNode:
-    """一个 n8n 节点。"""
+    """An n8n node."""
 
     __slots__ = [
         "id",
@@ -99,9 +99,9 @@ class N8nNode:
 
     @property
     def short_type(self) -> str:
-        """去掉命名空间前缀的短类型名。
+        """The short type name with the namespace prefix removed.
 
-        ``n8n-nodes-base.httpRequest`` → ``httpRequest``；
-        ``@n8n/n8n-nodes-langchain.agent`` → ``agent``。
+        ``n8n-nodes-base.httpRequest`` → ``httpRequest``;
+        ``@n8n/n8n-nodes-langchain.agent`` → ``agent``.
         """
         return self.type.rsplit(".", 1)[-1] if "." in self.type else self.type

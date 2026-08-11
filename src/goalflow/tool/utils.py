@@ -212,32 +212,32 @@ class VariableResolver:
     @staticmethod
     def replace_template(template: str, variables: dict):
         """
-           解决带空格的变量名替换问题
-           支持各种空格组合：{{# var #}}、{{#var#}}、{{#  var  #}}等
+           Handle replacement of variable names that contain spaces
+           Supports various space combinations: {{# var #}}, {{#var#}}, {{#  var  #}}, etc.
 
-           参数:
-               template: 包含{{#variable#}}格式的模板
-               variables: 变量名到值的映射字典
+           Args:
+               template: Template containing {{#variable#}} format
+               variables: Dictionary mapping variable names to values
 
-           返回:
-               替换后的字符串
+           Returns:
+               The string after replacement
            """
-        # 正则表达式改进：匹配含空格的情况
+        # Regex improvement: match cases containing spaces
         pattern = r'\{\{\#\s*([^\}#]+?)\s*\#\}\}'
 
-        # 执行替换的回调函数
+        # Callback function that performs the replacement
         def replace_match(match):
-            # 提取变量名并去除两端空格
+            # Extract the variable name and strip surrounding spaces
             raw_var_name = match.group(1).strip()
             selector = raw_var_name.split(".")
             data = VariableResolver.resolve_value_selector(selector, variables)
-            # 空值处理
+            # Handle empty values
             if data is None or data == [] or data == "":
                 return ""
             # TODO
             return str(data)
 
-        # 使用正则表达式替换
+        # Replace using the regex
         try:
             return re.sub(pattern, replace_match, template)
         except Exception as e:

@@ -1,17 +1,17 @@
-"""HarnessProfile：task_type 一站式治理配置。
+"""HarnessProfile: one-stop governance configuration for a task_type.
 
-把"配 LLM + 注册 Prompts + 设 skills_dir + 调 skill 匹配阈值"四件事
-收敛到一次 register() 调用，避免业务 startup 散落 6+ 次 ``HARNESS_ROUTER.configure`` /
-``HARNESS_PROMPTS.register`` 调用。
+Consolidates the four tasks of "configure LLM + register Prompts + set skills_dir + tune
+skill match thresholds" into a single register() call, avoiding scattered business startup
+with 6+ separate ``HARNESS_ROUTER.configure`` / ``HARNESS_PROMPTS.register`` calls.
 
-设计要点：
-- **薄包装**：内部调用现有 ``HARNESS_ROUTER.configure`` + ``HARNESS_PROMPTS.register``，
-  不引入新存储；旧 API 继续工作。
-- **task_type 是一级总线**：profile 决定主 task_type + 子 task_type 命名规范
-  （``<task_type>.<sub_name>``）+ prompt 命名规范（``<task_type>.<prompt_name>``）。
-- **可选字段**：除 task_type 外都可选；只配关心的字段。
+Design points:
+- **Thin wrapper**: internally calls the existing ``HARNESS_ROUTER.configure`` + ``HARNESS_PROMPTS.register``,
+  introducing no new storage; the old APIs keep working.
+- **task_type is the primary bus**: a profile determines the main task_type + the sub task_type naming
+  convention (``<task_type>.<sub_name>``) + the prompt naming convention (``<task_type>.<prompt_name>``).
+- **Optional fields**: everything except task_type is optional; only configure the fields you care about.
 
-典型用法::
+Typical usage::
 
     HARNESS_PROFILES.register(
         "guided_clarification",
@@ -27,7 +27,7 @@
         skills_dir="./skills/guided_clarification",
     )
 
-    # Runtime / business 读：
+    # Runtime / business reads:
     profile = HARNESS_PROFILES.get("guided_clarification")
     profile.task_type           # "guided_clarification"
     profile.skills_dir          # "./skills/..."
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class HarnessProfile:
-    """单个 task_type 的治理配置快照。"""
+    """A governance configuration snapshot for a single task_type."""
 
     task_type: str
     llm: dict = field(default_factory=dict)
@@ -59,16 +59,16 @@ class HarnessProfile:
     extra: dict = field(default_factory=dict)
 
     def sub_task_type(self, name: str) -> str:
-        """子 task_type 命名约定：<task_type>.<name>。"""
+        """Sub task_type naming convention: <task_type>.<name>."""
         return f"{self.task_type}.{name}"
 
     def prompt_name(self, name: str) -> str:
-        """prompt 命名约定：<task_type>.<name>。"""
+        """Prompt naming convention: <task_type>.<name>."""
         return f"{self.task_type}.{name}"
 
 
 class ProfileRegistry:
-    """全局 ProfileRegistry 单例（``HARNESS_PROFILES``）。"""
+    """Global ProfileRegistry singleton (``HARNESS_PROFILES``)."""
 
     def __init__(self) -> None:
         self._profiles: dict[str, HarnessProfile] = {}
@@ -86,17 +86,17 @@ class ProfileRegistry:
         skill_match_threshold: float = 0.3,
         **extra,
     ) -> HarnessProfile:
-        """一次性注册 task_type 的完整治理配置。
+        """Register the complete governance configuration for a task_type in one call.
 
-        内部 fan-out 到 ``HARNESS_ROUTER.configure`` 和 ``HARNESS_PROMPTS.register``。
-        重复注册同名 task_type 会覆盖。
+        Internally fans out to ``HARNESS_ROUTER.configure`` and ``HARNESS_PROMPTS.register``.
+        Re-registering the same task_type overwrites it.
 
-        :param llm: 主 task_type 的 LLM 配置，如 ``{"provider": "qwen", "model": "qwen-plus", "temperature": 0.0}``
-        :param sub_llms: 子 task_type 配置；key 是子名（不带 task_type 前缀），值是 LLM 配置 dict
-        :param prompts: prompt 名 → fallback callable；prompt 全名会变成 ``<task_type>.<name>``
-        :param skills_dir: skill 根目录（业务节点可通过 profile.skills_dir 读）
-        :param skill_match_top_k / threshold: skill 匹配参数（业务节点可通过 profile 读）
-        :param extra: 业务自定义字段，存到 profile.extra
+        :param llm: LLM config for the main task_type, e.g. ``{"provider": "qwen", "model": "qwen-plus", "temperature": 0.0}``
+        :param sub_llms: sub task_type config; key is the sub name (without the task_type prefix), value is an LLM config dict
+        :param prompts: prompt name -> fallback callable; the full prompt name becomes ``<task_type>.<name>``
+        :param skills_dir: skill root directory (business nodes can read it via profile.skills_dir)
+        :param skill_match_top_k / threshold: skill match parameters (business nodes can read them via profile)
+        :param extra: business-custom fields, stored in profile.extra
         """
         from agent_kit.harness.model_router import HARNESS_ROUTER
         from agent_kit.harness.prompt_registry import HARNESS_PROMPTS
@@ -133,15 +133,16 @@ class ProfileRegistry:
         return profile
 
     def get(self, task_type: str) -> Optional[HarnessProfile]:
-        """读 profile；未注册返回 None。"""
+        """Read a profile; returns None if not registered."""
         with self._lock:
             return self._profiles.get(task_type)
 
     def reset(self) -> None:
-        """清空所有 profile 注册。仅单测使用。
+        """Clear all profile registrations. For unit tests only.
 
-        注意：本方法不级联清理 ``HARNESS_ROUTER._configs`` / ``HARNESS_PROMPTS``
-        里 ``register()`` 时 fan-out 写入的副作用。测试间想完全隔离须自行：
+        Note: this method does not cascade-clear the side effects fanned out into
+        ``HARNESS_ROUTER._configs`` / ``HARNESS_PROMPTS`` during ``register()``. To fully
+        isolate between tests, do it yourself:
 
             HARNESS_PROFILES.reset()
             HARNESS_ROUTER.reset_all()

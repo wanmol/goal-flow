@@ -1,17 +1,17 @@
-"""DynamicPromptMiddleware：动态 system prompt 中间件。
+"""DynamicPromptMiddleware: dynamic system prompt middleware.
 
-把 ``aira-agent-kit/agent_kit/runtimes/base.py:530-541`` 的
-``_dynamic_system_prompt_middleware`` 提取为可独立 import 的工厂函数，
-便于业务在 ``middleware_extra()`` 里复用而无需继承 ``AgentRuntime``。
+Extracts the ``_dynamic_system_prompt_middleware`` from
+``aira-agent-kit/agent_kit/runtimes/base.py:530-541`` into an independently importable factory
+function, so business code can reuse it inside ``middleware_extra()`` without inheriting ``AgentRuntime``.
 
-设计意图：
-- ``AgentRuntime._dynamic_system_prompt_middleware()`` 是 Runtime 内部方法，
-  外部无法独立 import，更不能在 ``ContextMiddleware`` 等中间件链里复用
-- 本模块把"从 ``runtime.context.system_prompt`` 取 prompt（空则回 fallback）"
-  这个模式抽成顶层函数，并允许业务注入自定义 ``prompt_source``（如调
-  ``HARNESS_PROMPTS.render(...)`` 或读 state）
+Design intent:
+- ``AgentRuntime._dynamic_system_prompt_middleware()`` is a Runtime internal method;
+  it can't be imported independently, let alone reused within middleware chains like ``ContextMiddleware``
+- This module abstracts the "take the prompt from ``runtime.context.system_prompt`` (fall back if empty)"
+  pattern into a top-level function, and allows business code to inject a custom ``prompt_source``
+  (e.g. calling ``HARNESS_PROMPTS.render(...)`` or reading state)
 
-复用 LangChain ``@dynamic_prompt`` 装饰器，不重新发明。
+Reuses LangChain's ``@dynamic_prompt`` decorator rather than reinventing it.
 """
 from __future__ import annotations
 
@@ -25,10 +25,10 @@ PromptSource = Callable[[ModelRequest], Optional[str]]
 
 
 def _read_system_prompt_from_context(request: ModelRequest) -> Optional[str]:
-    """默认 prompt_source：从 ``request.runtime.context.system_prompt`` 取。
+    """Default prompt_source: take from ``request.runtime.context.system_prompt``.
 
-    复刻 ``aira-agent-kit/agent_kit/runtimes/base.py:530-541`` 的行为，
-    供 ``AgentRuntime`` 子类继续依赖。
+    Replicates the behavior of ``aira-agent-kit/agent_kit/runtimes/base.py:530-541``,
+    for ``AgentRuntime`` subclasses to keep relying on.
     """
     ctx = getattr(request.runtime, "context", None)
     if ctx is None:
@@ -44,27 +44,27 @@ def make_dynamic_prompt_middleware(
     *,
     fallback: str = DEFAULT_FALLBACK_PROMPT,
 ):
-    """工厂：返回一个 LangChain ``@dynamic_prompt`` 装饰的中间件实例。
+    """Factory: return a LangChain ``@dynamic_prompt``-decorated middleware instance.
 
     Args:
-        prompt_source: ``Callable[[ModelRequest], str | None]``；返回非空字符串
-            则作为 system prompt 使用，返回 ``None``/空串则回退到 ``fallback``。
-            默认从 ``request.runtime.context.system_prompt`` 读取（兼容现有
-            ``AgentRuntime`` 子类的 context_schema 注入方式）。
-        fallback: ``prompt_source`` 取不到值时使用的兜底 prompt。
+        prompt_source: ``Callable[[ModelRequest], str | None]``; a non-empty string return value
+            is used as the system prompt, while ``None``/empty string falls back to ``fallback``.
+            Defaults to reading from ``request.runtime.context.system_prompt`` (compatible with the
+            existing ``AgentRuntime`` subclasses' context_schema injection approach).
+        fallback: the fallback prompt used when ``prompt_source`` yields no value.
 
-    用法::
+    Usage::
 
-        # 默认：从 runtime.context.system_prompt 取
+        # Default: take from runtime.context.system_prompt
         md = make_dynamic_prompt_middleware()
 
-        # 自定义：从 HARNESS_PROMPTS 拉
+        # Custom: pull from HARNESS_PROMPTS
         md = make_dynamic_prompt_middleware(
             lambda req: HARNESS_PROMPTS.render("my_agent.system", **req.state),
-            fallback="你是一个智能助手。",
+            fallback="You are an intelligent assistant.",
         )
 
-        # 在 middleware_extra 里返回
+        # Return it inside middleware_extra
         class MyAgent(CreateAgentRuntime[MyResult]):
             def middleware_extra(self):
                 return [make_dynamic_prompt_middleware()]

@@ -14,7 +14,7 @@ from goalflow.monitor.framework_leak_checker import FrameworkLeakChecker
 
 router = APIRouter(prefix="/api/memory", tags=["内存监控"])
 
-# 依赖注入
+# Dependency injection
 def get_monitor():
     try:
         return get_memory_monitor()
@@ -29,16 +29,16 @@ async def get_object_type_stats(
     monitor=Depends(get_monitor)
 ):
     """
-    按对象类型统计内存占用大小
-    
-    返回内存占用最大的前N种对象类型的统计信息，
-    包括每种类型的数量、总内存占用、平均大小等。
+    Break down memory usage by object type
+
+    Returns statistics for the top N object types by memory usage,
+    including the count, total memory usage, and average size of each type.
     """
     monitor : FastAPIMemoryMonitor = monitor
     try:
         stats = monitor.analyze_object_types(top_n=top_n, force_refresh=force_refresh)
-        
-        # 如果不包含示例，则从结果中移除
+
+        # If examples are not included, remove them from the result
         if not include_examples and 'top_types' in stats:
             for type_stat in stats['top_types']:
                 if 'examples' in type_stat:
@@ -60,16 +60,16 @@ async def get_object_type_stats2(
     monitor=Depends(get_monitor)
 ):
     """
-    按对象类型统计内存占用大小
-    
-    返回内存占用最大的前N种对象类型的统计信息，
-    包括每种类型的数量、总内存占用、平均大小等。
+    Break down memory usage by object type
+
+    Returns statistics for the top N object types by memory usage,
+    including the count, total memory usage, and average size of each type.
     """
     monitor : FastAPIMemoryMonitor = monitor
     try:
         stats = monitor.analyze_object_types2(top_n=top_n, force_refresh=force_refresh)
-        
-        # 如果不包含示例，则从结果中移除
+
+        # If examples are not included, remove them from the result
         if not include_examples and 'top_types' in stats:
             for type_stat in stats['top_types']:
                 if 'examples' in type_stat:
@@ -89,14 +89,14 @@ async def get_top10_object_types(
     monitor=Depends(get_monitor)
 ):
     """
-    获取内存占用最大的前10种对象类型
-    
-    简化的TOP10接口，返回格式更简洁。
+    Get the top 10 object types by memory usage
+
+    A simplified TOP10 endpoint with a more concise response format.
     """
     try:
         stats = monitor.analyze_object_types(top_n=10, force_refresh=force_refresh)
-        
-        # 简化结果格式
+
+        # Simplify the result format
         top10 = []
         for type_stat in stats.get('top_types', []):
             top10.append({
@@ -125,9 +125,9 @@ async def search_objects_by_type(
     monitor=Depends(get_monitor)
 ):
     """
-    查找指定类型的所有对象
-    
-    返回指定类型的所有对象实例，包含每个对象的大小和表示。
+    Find all objects of a specified type
+
+    Returns all object instances of the given type, including each object's size and representation.
     """
     monitor : FastAPIMemoryMonitor = monitor
     try:
@@ -150,31 +150,31 @@ async def search_objects_by_type(
 @router.get("/types/common", summary="获取常见对象类型统计")
 async def get_common_object_types(monitor=Depends(get_monitor)):
     """
-    获取常见对象类型的统计
-    
-    返回一些预定义的常见对象类型的统计信息。
+    Get statistics for common object types
+
+    Returns statistics for a set of predefined common object types.
     """
     try:
-        # 预定义的常见类型
+        # Predefined common types
         common_types = [
-            'list', 'dict', 'str', 'tuple', 'int', 'float', 
+            'list', 'dict', 'str', 'tuple', 'int', 'float',
             'bytes', 'bytearray', 'set', 'function', 'type',
             'module', 'instance', 'ndarray', 'DataFrame', 'Series'
         ]
-        
-        # 获取完整统计
+
+        # Get the full statistics
         full_stats = monitor.analyze_object_types(top_n=50, force_refresh=False)
-        
-        # 筛选常见类型
+
+        # Filter common types
         common_stats = []
         for type_stat in full_stats.get('top_types', []):
             if type_stat['type'] in common_types:
                 common_stats.append(type_stat)
-        
-        # 添加缺失的常见类型（即使不在TOP50中）
+
+        # Add missing common types (even if not in the TOP50)
         found_types = {stat['type'] for stat in common_stats}
         for missing_type in set(common_types) - found_types:
-            # 尝试单独查找
+            # Try to look it up individually
             try:
                 result = monitor.find_objects_by_type(target_type=missing_type, limit=1)
                 if result['count'] > 0:
@@ -183,21 +183,21 @@ async def get_common_object_types(monitor=Depends(get_monitor)):
                         'count': result['count'],
                         'size_bytes': result['total_size_bytes'],
                         'size_mb': result['total_size_mb'],
-                        'percentage': 0,  # 需要计算
+                        'percentage': 0,  # needs to be calculated
                         'avg_size_bytes': result['total_size_bytes'] / result['count'] if result['count'] > 0 else 0,
                         'module': 'unknown',
                         'examples': []
                     })
             except:
                 continue
-        
-        # 重新计算百分比
+
+        # Recalculate percentages
         total_memory = full_stats['summary']['total_memory_bytes']
         for stat in common_stats:
             if total_memory > 0:
                 stat['percentage'] = round(stat['size_bytes'] / total_memory * 100, 2)
-        
-        # 按大小排序
+
+        # Sort by size
         common_stats.sort(key=lambda x: x['size_bytes'], reverse=True)
         
         return {
@@ -578,9 +578,9 @@ async def get_object_type_history(
     monitor=Depends(get_monitor)
 ):
     """
-    获取对象类型统计的历史记录
-    
-    返回最近的对象类型统计历史。
+    Get the history of object type statistics
+
+    Returns the most recent object type statistics history.
     """
     try:
         history = monitor.get_type_statistics_history(limit=limit)
@@ -598,9 +598,9 @@ async def get_object_type_history(
 @router.post("/types/cache/clear", summary="清空类型统计缓存")
 async def clear_type_stats_cache(monitor=Depends(get_monitor)):
     """
-    清空对象类型统计的缓存
-    
-    强制下次请求重新分析对象类型。
+    Clear the object type statistics cache
+
+    Forces a re-analysis of object types on the next request.
     """
     try:
         monitor.clear_type_stats_cache()
@@ -612,18 +612,18 @@ async def clear_type_stats_cache(monitor=Depends(get_monitor)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"清空缓存失败: {str(e)}")
 
-# 保留原有的其他端点...
-# [这里保留原有的所有其他路由函数，如/status, /history, /analyze等]
+# Keep the other existing endpoints...
+# [all other existing route functions are kept here, such as /status, /history, /analyze, etc.]
 
-# 更新仪表板，添加类型统计链接
+# Update the dashboard, add the type statistics link
 @router.get("/dashboard", response_class=HTMLResponse, summary="内存监控仪表板")
 async def memory_dashboard(monitor=Depends(get_monitor)):
-    """内存监控仪表板页面"""
+    """Memory monitoring dashboard page"""
     try:
-        # ... [原有的仪表板代码保持不变]
-        
-        # 在仪表板的导航部分添加类型统计链接
-        # 修改导航部分，添加：
+        # ... [the existing dashboard code stays unchanged]
+
+        # Add the type statistics link to the dashboard's navigation section
+        # Modify the navigation section, add:
         """
         <div class="nav">
             <a href="/api/memory/status">当前状态</a>
@@ -636,37 +636,37 @@ async def memory_dashboard(monitor=Depends(get_monitor)):
             <a href="/system/status">系统状态</a>
         </div>
         """
-        
-        # ... [其余原有代码]
-        
+
+        # ... [the rest of the existing code]
+
     except Exception as e:
-        # ... [原有的错误处理]
+        # ... [the existing error handling]
         pass
-    
+
 
 @router.get("/status", summary="获取当前内存状态")
 async def get_memory_status():
-    """获取当前内存使用情况"""
+    """Get the current memory usage"""
     monitor = get_memory_monitor()
     stats = monitor.get_current_stats()
     return stats
 
 @router.get("/history", summary="获取内存历史记录")
 async def get_memory_history(limit: int = 50):
-    """获取最近的内存历史记录"""
+    """Get the most recent memory history records"""
     monitor = get_memory_monitor()
     history = monitor.history[-limit:] if limit > 0 else monitor.history
     return {
         "count": len(history),
         "history": history
     }
-    
+
 @router.get("/analyze", summary="分析内存泄漏")
 async def analyze_memory_leak(
     window_seconds: int = 180,
     threshold_mb: float = 10
 ):
-    """分析指定时间窗口内的内存泄漏情况"""
+    """Analyze memory leaks within the given time window"""
     monitor = get_memory_monitor()
     monitor.leak_threshold_mb = threshold_mb
     report = monitor.analyze_leak(window_seconds)
@@ -674,7 +674,7 @@ async def analyze_memory_leak(
 
 @router.get("/objects/large/{threshold_mb}", summary="查找大对象")
 async def find_large_objects(threshold_mb: float = 1):
-    """查找内存中的大对象"""
+    """Find large objects in memory"""
     monitor = get_memory_monitor()
     large_objects = monitor._find_large_objects(threshold_mb)
     return {
@@ -682,10 +682,10 @@ async def find_large_objects(threshold_mb: float = 1):
         "count": len(large_objects),
         "objects": large_objects
     }
-    
+
 @router.get("/gc/stats", summary="获取GC统计")
 async def get_gc_stats():
-    """获取垃圾回收统计信息"""
+    """Get garbage collection statistics"""
     import gc
     return {
         "enabled": gc.isenabled(),
@@ -693,20 +693,20 @@ async def get_gc_stats():
         "count": gc.get_count(),
         "objects_tracked": len(gc.get_objects())
     }
-    
+
 @router.post("/gc/collect", summary="手动触发GC")
 async def trigger_gc():
-    """手动触发垃圾回收"""
+    """Manually trigger garbage collection"""
     import gc
     collected = gc.collect()
     return {
         "collected": collected,
         "message": "垃圾回收已执行"
     }
-    
+
 @router.get("/summary", summary="获取内存摘要")
 async def get_memory_summary():
-    """获取内存使用摘要"""
+    """Get a summary of memory usage"""
     monitor = get_memory_monitor()
     summary = monitor.get_history_summary()
     return summary

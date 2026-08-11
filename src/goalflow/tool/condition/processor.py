@@ -11,19 +11,19 @@ class ConditionProcessor:
     def process_conditions(
             self,
             *,
-            variable_pool: Dict[str, Any],  # 合并了input_variables、output_variables、conversation_variables 的变量池
+            variable_pool: Dict[str, Any],  # variable pool merging input_variables, output_variables, and conversation_variables
             conditions: Sequence[Condition],
             operator: Literal["and", "or"],
             state: GenericState,
     ):
         """
-        评估每个 if-else case的条件结果
+        Evaluate the condition result for each if-else case
         """
         input_conditions = []
         group_results = []
         for condition in conditions:
             variable_selector = condition.variable_selector
-            # 实际的变量值
+            # The actual variable value
             node_id, variable_name = variable_selector
             variable = f'{node_id}_{variable_name}'
             if variable is None:

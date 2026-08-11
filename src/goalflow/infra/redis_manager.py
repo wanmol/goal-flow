@@ -11,17 +11,17 @@ from redis.cluster import ClusterNode, RedisCluster
 from goalflow.config import get_logger
 from goalflow.infra.database import Config
 
-# 移除错误的导入，使用本文件定义的redis_fallback
+# Removed the incorrect import; use the redis_fallback defined in this file
 
 logger = get_logger(__name__)
 
 
 def redis_fallback(default_return: Any = None):
     """
-    Redis操作异常处理装饰器，当Redis不可用时返回默认值
+    Redis operation exception-handling decorator; returns a default value when Redis is unavailable
 
     Args:
-        default_return: Redis操作失败时的默认返回值
+        default_return: the default return value when the Redis operation fails
     """
 
     def decorator(func: Callable):
@@ -35,7 +35,7 @@ def redis_fallback(default_return: Any = None):
                 )
                 return default_return
             except Exception as e:
-                # 区分Redis相关错误和其他错误
+                # Distinguish Redis-related errors from other errors
                 if "Redis" in str(e) or "redis" in str(e).lower():
                     logger.error(
                         f"Redis相关错误 - 函数: {func.__name__}, 错误: {str(e)}"
@@ -53,26 +53,26 @@ def redis_fallback(default_return: Any = None):
 
 class RedisClusterClientWrapper:
     """
-    Redis集群客户端包装器，用于处理集群模式下的Redis连接管理。
+    Redis cluster client wrapper, used to handle Redis connection management in cluster mode.
 
-    该类提供了延迟初始化功能，允许在需要时重新初始化Redis客户端实例。
-    特别适用于Redis集群环境中节点可能动态变化的场景。
+    This class provides lazy initialization, allowing the Redis client instance to be reinitialized when needed.
+    Especially suitable for scenarios where nodes may change dynamically in a Redis cluster environment.
 
     Attributes:
-        _client (redis.RedisCluster): 实际的Redis集群客户端实例
+        _client (redis.RedisCluster): the actual Redis cluster client instance
     """
 
     def __init__(self):
         self._client = None
 
     def initialize(self, client: RedisCluster):
-        """初始化Redis集群客户端"""
+        """Initialize the Redis cluster client"""
         if self._client is None:
             self._client = client
             # logger.info("Redis cluster client initialized successfully.")
 
     def reinitialize(self, client: RedisCluster):
-        """重新初始化Redis集群客户端（用于故障转移）"""
+        """Reinitialize the Redis cluster client (used for failover)"""
         self._client = client
         logger.info("Redis cluster client reinitialized successfully")
 
@@ -84,10 +84,10 @@ class RedisClusterClientWrapper:
 
 class RedisClusterManager:
     """
-    FastAPI Redis集群管理器
+    FastAPI Redis cluster manager
 
-    提供Redis集群的连接管理、缓存操作和故障处理功能。
-    支持Redis 7.0.15集群模式的所有特性。
+    Provides connection management, cache operations, and fault handling for Redis clusters.
+    Supports all features of Redis 7.0.15 cluster mode.
     """
 
     _instance = None
@@ -100,7 +100,7 @@ class RedisClusterManager:
         return cls._instance
 
     def __init__(self):
-        # 确保_client_wrapper只初始化一次
+        # Ensure _client_wrapper is initialized only once
         if (
             not hasattr(self.__class__, "_client_wrapper")
             or self.__class__._client_wrapper is None
@@ -110,10 +110,10 @@ class RedisClusterManager:
     @classmethod
     def init_cluster(cls, config: Optional[Config] = None):
         """
-        初始化Redis集群连接
+        Initialize the Redis cluster connection
 
         Args:
-            config: 配置对象，如果为None则使用默认配置
+            config: config object; if None, the default config is used
         """
         if config is None:
             config = Config()
@@ -125,13 +125,13 @@ class RedisClusterManager:
             return False
 
         try:
-            # 解析集群节点
+            # Parse cluster nodes
             cluster_nodes = []
             for node in config.REDIS_CLUSTERS.split(","):
                 host, port = node.strip().split(":")
                 cluster_nodes.append(ClusterNode(host=host, port=int(port)))
 
-            # Redis连接参数
+            # Redis connection parameters
             redis_params = {
                 "startup_nodes": cluster_nodes,
                 "password": getattr(config, "REDIS_PASSWORD", None),
@@ -139,7 +139,7 @@ class RedisClusterManager:
                 "decode_responses": True,
                 "encoding": "utf-8",
                 "encoding_errors": "strict",
-                "skip_full_coverage_check": True,  # 跳过完整覆盖检查
+                "skip_full_coverage_check": True,  # Skip full coverage check
                 "max_connections_per_node": getattr(
                     config, "REDIS_MAX_CONNECTIONS_PER_NODE", 20
                 ),
@@ -149,26 +149,26 @@ class RedisClusterManager:
                 "retry_on_error": [ConnectionError, TimeoutError],
             }
 
-            # 如果支持SSL连接
+            # If SSL connections are supported
             if getattr(config, "REDIS_USE_SSL", False):
                 redis_params["ssl"] = True
                 redis_params["ssl_cert_reqs"] = None
 
-            # 如果支持客户端缓存（Redis 7.0+特性）
+            # If client-side caching is supported (Redis 7.0+ feature)
             if getattr(config, "REDIS_ENABLE_CLIENT_SIDE_CACHE", False):
                 redis_params["cache_config"] = CacheConfig()
 
-            # 创建Redis集群客户端
+            # Create the Redis cluster client
             cluster_client = RedisCluster(**redis_params)
 
-            # 测试连接
+            # Test the connection
             cluster_client.ping()
 
-            # 确保包装器已初始化
+            # Ensure the wrapper is initialized
             if cls._client_wrapper is None:
                 cls._client_wrapper = RedisClusterClientWrapper()
 
-            # 初始化包装器
+            # Initialize the wrapper
             cls._client_wrapper.initialize(cluster_client)
 
             # logger.info(f"Redis cluster connected successfully, number of nodes: {len(cluster_nodes)}")
@@ -180,7 +180,7 @@ class RedisClusterManager:
 
     @classmethod
     def get_client(cls) -> Optional[RedisCluster]:
-        """获取Redis集群客户端"""
+        """Get the Redis cluster client"""
         if cls._client_wrapper is None:
             logger.error("Redis集群客户端未初始化")
             return None
@@ -193,7 +193,7 @@ class RedisClusterManager:
 
     @classmethod
     def is_enabled(cls) -> bool:
-        """检查Redis集群是否启用并可用"""
+        """Check whether the Redis cluster is enabled and available"""
         try:
             client = cls.get_client()
             if client is None:
@@ -206,7 +206,7 @@ class RedisClusterManager:
 
     @classmethod
     def get_cluster_info(cls) -> dict:
-        """获取集群信息"""
+        """Get cluster information"""
         try:
             client = cls.get_client()
             if client is None:
@@ -218,7 +218,7 @@ class RedisClusterManager:
 
     @classmethod
     def get_cluster_nodes(cls) -> dict:
-        """获取集群节点信息"""
+        """Get cluster node information"""
         try:
             client = cls.get_client()
             if client is None:
@@ -230,7 +230,7 @@ class RedisClusterManager:
 
     @classmethod
     def close(cls):
-        """关闭Redis集群连接"""
+        """Close the Redis cluster connection"""
         try:
             if cls._client_wrapper and cls._client_wrapper._client:
                 cls._client_wrapper._client.close()
@@ -243,21 +243,21 @@ class RedisClusterManager:
     @redis_fallback(default_return=False)
     def set(key: str, value: Any, ttl: Optional[int] = None) -> bool:
         """
-        设置缓存值
+        Set a cache value
 
         Args:
-            key: 缓存键
-            value: 缓存值
-            ttl: 过期时间（秒），None表示使用默认超时
+            key: cache key
+            value: cache value
+            ttl: expiration time (seconds); None means use the default timeout
 
         Returns:
-            bool: 设置成功返回True，失败返回False
+            bool: True if set successfully, False on failure
         """
         client = RedisClusterManager.get_client()
         if client is None:
             return False
 
-        # 序列化值
+        # Serialize the value
         if isinstance(value, (dict, list, tuple)):
             # serialized_value = json.dumps(value, ensure_ascii=False)
             serialized_value = str(value)
@@ -266,7 +266,7 @@ class RedisClusterManager:
         else:
             serialized_value = str(value)
 
-        # 设置过期时间
+        # Set the expiration time
         if ttl is not None:
             return client.setex(key, ttl, serialized_value)
         else:
@@ -279,13 +279,13 @@ class RedisClusterManager:
     @redis_fallback(default_return=None)
     def get(key: str) -> Any:
         """
-        获取缓存值
+        Get a cache value
 
         Args:
-            key: 缓存键
+            key: cache key
 
         Returns:
-            Any: 缓存值，不存在或失败返回None
+            Any: the cache value; returns None if it does not exist or on failure
         """
         client = RedisClusterManager.get_client()
         if client is None:
@@ -295,7 +295,7 @@ class RedisClusterManager:
         if value is None:
             return None
 
-        # 尝试JSON反序列化
+        # Try JSON deserialization
         # try:
         #     return json.loads(value)
         # except (json.JSONDecodeError, TypeError):
@@ -305,13 +305,13 @@ class RedisClusterManager:
     @redis_fallback(default_return=False)
     def delete(key: str) -> bool:
         """
-        删除缓存值
+        Delete a cache value
 
         Args:
-            key: 缓存键
+            key: cache key
 
         Returns:
-            bool: 删除成功返回True，失败返回False
+            bool: True if deleted successfully, False on failure
         """
         client = RedisClusterManager.get_client()
         if client is None:
@@ -324,13 +324,13 @@ class RedisClusterManager:
     @redis_fallback(default_return=False)
     def exists(key: str) -> bool:
         """
-        检查键是否存在
+        Check whether a key exists
 
         Args:
-            key: 缓存键
+            key: cache key
 
         Returns:
-            bool: 存在返回True，不存在或失败返回False
+            bool: True if it exists, False if it does not exist or on failure
         """
         client = RedisClusterManager.get_client()
         if client is None:
@@ -342,13 +342,13 @@ class RedisClusterManager:
     @redis_fallback(default_return=-2)
     def ttl(key: str) -> int:
         """
-        获取键的剩余过期时间
+        Get the remaining expiration time of a key
 
         Args:
-            key: 缓存键
+            key: cache key
 
         Returns:
-            int: 剩余过期时间（秒），-1表示永不过期，-2表示键不存在
+            int: remaining expiration time (seconds); -1 means never expires, -2 means the key does not exist
         """
         client = RedisClusterManager.get_client()
         if client is None:
@@ -360,14 +360,14 @@ class RedisClusterManager:
     @redis_fallback(default_return=False)
     def expire(key: str, seconds: int) -> bool:
         """
-        设置键的过期时间
+        Set the expiration time of a key
 
         Args:
-            key: 缓存键
-            seconds: 过期时间（秒）
+            key: cache key
+            seconds: expiration time (seconds)
 
         Returns:
-            bool: 设置成功返回True，失败返回False
+            bool: True if set successfully, False on failure
         """
         client = RedisClusterManager.get_client()
         if client is None:
@@ -379,19 +379,19 @@ class RedisClusterManager:
     @redis_fallback(default_return={})
     def mget(keys: list) -> dict:
         """
-        批量获取多个键的值
+        Get the values of multiple keys in batch
 
         Args:
-            keys: 键列表
+            keys: list of keys
 
         Returns:
-            dict: 键值对字典
+            dict: dictionary of key-value pairs
         """
         client = RedisClusterManager.get_client()
         if client is None or not keys:
             return {}
 
-        # Redis集群模式下，mget可能需要特殊处理
+        # In Redis cluster mode, mget may need special handling
         result = {}
         for key in keys:
             try:
@@ -402,7 +402,7 @@ class RedisClusterManager:
                     except (json.JSONDecodeError, TypeError):
                         result[key] = value
             except Exception:
-                continue  # 跳过失败的键
+                continue  # Skip failed keys
 
         return result
 
@@ -410,20 +410,20 @@ class RedisClusterManager:
     @redis_fallback(default_return=False)
     def mset(mapping: dict, ttl: Optional[int] = None) -> bool:
         """
-        批量设置多个键值对
+        Set multiple key-value pairs in batch
 
         Args:
-            mapping: 键值对字典
-            ttl: 过期时间（秒）
+            mapping: dictionary of key-value pairs
+            ttl: expiration time (seconds)
 
         Returns:
-            bool: 设置成功返回True
+            bool: True if set successfully
         """
         client = RedisClusterManager.get_client()
         if client is None or not mapping:
             return False
 
-        # 序列化所有值
+        # Serialize all values
         serialized_mapping = {}
         for key, value in mapping.items():
             if isinstance(value, (dict, list, tuple)):
@@ -433,29 +433,29 @@ class RedisClusterManager:
             else:
                 serialized_mapping[key] = str(value)
 
-        # 批量设置
+        # Set in batch
         success = client.mset(serialized_mapping)
 
-        # 如果需要设置过期时间
+        # If the expiration time needs to be set
         if success and ttl is not None:
             for key in mapping.keys():
                 try:
                     client.expire(key, ttl)
                 except Exception:
-                    continue  # 忽略过期时间设置失败
+                    continue  # Ignore failures to set the expiration time
 
         return success
 
     @classmethod
     def pipeline(cls, transaction: bool = True):
         """
-        获取Redis管道对象
+        Get a Redis pipeline object
 
         Args:
-            transaction: 是否启用事务模式
+            transaction: whether to enable transaction mode
 
         Returns:
-            Redis管道对象，如果客户端未初始化则返回None
+            Redis pipeline object; returns None if the client is not initialized
         """
         client = cls.get_client()
         if client is None:
@@ -465,7 +465,7 @@ class RedisClusterManager:
     @classmethod
     def lrange(cls, key: str, start: int, end: int) -> list:
         """
-        获取列表的指定范围的值
+        Get values in the specified range of a list
         """
         client = cls.get_client()
         if client is None:
@@ -473,5 +473,5 @@ class RedisClusterManager:
         return client.lrange(key, start, end)
 
 
-# 全局Redis集群管理器实例
+# Global Redis cluster manager instance
 redis_client = RedisClusterManager()

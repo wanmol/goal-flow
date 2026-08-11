@@ -19,7 +19,7 @@ from goalflow.config import get_logger
 
 logger = get_logger(__name__)
 
-# 自然语言查询数据库，并返回结果，以下基于官方样例改造
+# Query the database using natural language and return the result; the following is adapted from the official example
 class NaturalLanguageQueryNode(BaseNode):
     """
     @see https://docs.langchain.com/oss/python/langgraph/sql-agent
@@ -197,7 +197,7 @@ You will call the appropriate tool to execute the query after running this check
             messages = data.get("messages",[])
             message:AIMessage = messages[-1]
             content = message.content
-            # data 包含该节点的所有执行过程（所有的llm和tool调用）
+            # data contains the entire execution process of this node (all llm and tool calls)
             logger.info("after natural language node execute", name=self.formatted_name, data=data)
             
             update = VariableResolver.format_output(node_id=self.id,outputs={"result":content})

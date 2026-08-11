@@ -54,22 +54,22 @@ def json_parse(
 
 def tavily_search_adapter(tool_parameters: dict[str, Any], variable_pool: dict[str, Any]):
     """
-    Tavily 搜索工具适配器
+    Tavily search tool adapter
 
     Args:
-        tool_parameters: 工具参数字典，包含 query, max_results 等
-        variable_pool: 变量池（状态字典）
+        tool_parameters: tool parameter dict, containing query, max_results, etc.
+        variable_pool: variable pool (state dict)
 
     Returns:
-        搜索结果字符串（JSON 格式）
+        search result string (JSON format)
     """
-    # 提取必需参数 query，并处理模板字符串
+    # extract the required parameter query, and process template strings
     query_dic = tool_parameters.get("query", {})
     if not query_dic.get("value"):
         raise ValueError("query parameter is required for Tavily search")
 
     query=query_dic["value"]
-    # 如果 query 是字符串且包含模板变量，进行模板替换
+    # if query is a string and contains template variables, perform template substitution
     if isinstance(query, str) and ("{{" in query or "#" in query):
         query = VariableResolver.replace_template(query, variable_pool)
     else:
@@ -85,7 +85,7 @@ def tavily_search_adapter(tool_parameters: dict[str, Any], variable_pool: dict[s
         include_domains_str_no_space = include_domains_str.replace(" ", "")
         include_domains_list=include_domains_str_no_space.split(",")
 
-    # 提取可选参数
+    # extract optional parameters
     exclude_domains_list=[]
     exclude_domains = tool_parameters.get("exclude_domains", {})
     if isinstance(exclude_domains, dict) and exclude_domains["value"] and len(exclude_domains["value"]) > 0:
@@ -126,24 +126,24 @@ def tavily_search_adapter(tool_parameters: dict[str, Any], variable_pool: dict[s
         raise ValueError("TAVILY_API_KEY 环境变量未设置")
 
     search = TavilySearch(
-        tavily_api_key=tavily_api_key,  # 从环境变量 TAVILY_API_KEY 读取
-        search_depth=search_depth_val,  # 搜索深度：basic（基础，快）/advanced（高级，全量结果）
-        max_results=max_results,        # 返回最大结果数，默认5，范围1-10
-        include_answer=True,            # 可选：是否返回直接答案（而非仅网页片段，默认False）
-        include_images=False,           # 可选：是否返回图片结果（默认False）
-        days=days_val,                  # Tavily 支持的 days 上限较小，建议合理范围
+        tavily_api_key=tavily_api_key,  # read from environment variable TAVILY_API_KEY
+        search_depth=search_depth_val,  # search depth: basic (basic, fast) / advanced (advanced, full results)
+        max_results=max_results,        # max number of results returned, default 5, range 1-10
+        include_answer=True,            # optional: whether to return a direct answer (instead of only web snippets, default False)
+        include_images=False,           # optional: whether to return image results (default False)
+        days=days_val,                  # the days upper limit supported by Tavily is relatively small, a reasonable range is recommended
         country=country_val,
-        exclude_domains=exclude_domains_list,      # 需为 list
-        include_domains=include_domains_list,      # 需为 list
+        exclude_domains=exclude_domains_list,      # must be a list
+        include_domains=include_domains_list,      # must be a list
         topic=topic_val,
-        time_range=time_range_val,       # 只能是 day/week/month/year
+        time_range=time_range_val,       # can only be day/week/month/year
     )
 
     try:
         logger.info("TavilySearch  request: ",TavilySearch=search)
         results = search.invoke(query)
         logger.info("The TavilySearch  results : " ,TavilySearch_results=results)
-        # 将结果格式化为 JSON 字符串
+        # format the results as a JSON string
         return json.dumps(results, ensure_ascii=False)
     except Exception as e:
         logger.error(f"Tavily search error: {e}", exc_info=True)
@@ -191,7 +191,7 @@ def mcp_tool_adapter(
 
 
 def simple_code(language: str, code: str):
-    # 安全模块白名单
+    # safe module whitelist
     ALLOWED_MODULES = {
         "math",
         "json",
@@ -205,8 +205,8 @@ def simple_code(language: str, code: str):
         "dateutil.relativedelta",
         "dateutil.tz",
         "_strptime",
-        "_datetime",  # 添加这个内部模块
-        "locale",  # strftime 可能需要这个模块
+        "_datetime",  # add this internal module
+        "locale",  # strftime may need this module
     }
 
     def safe_import(name, globals=None, locals=None, from_list=(), level=0):
@@ -214,10 +214,10 @@ def simple_code(language: str, code: str):
             return __import__(name, globals, locals, from_list, level)
         raise ImportError(f"导入模块 {name} 被禁止")
 
-    # 创建安全环境
+    # create safe environment
     safe_globals = {
         "__builtins__": {
-            # 安全的内置函数
+            # safe built-in functions
             "len": len,
             "sum": sum,
             "max": max,
@@ -248,7 +248,7 @@ def simple_code(language: str, code: str):
             "map": map,
             "iter": iter,
             "next": next,
-            # 安全异常类
+            # safe exception classes
             "Exception": Exception,
             "ValueError": ValueError,
             "TypeError": TypeError,
@@ -259,10 +259,10 @@ def simple_code(language: str, code: str):
             "ZeroDivisionError": ZeroDivisionError,
             "RuntimeError": RuntimeError,
             "ImportError": ImportError,
-            # 安全的导入函数
+            # safe import function
             "__import__": safe_import,
         },
-        # 允许的模块
+        # allowed modules
         "math": math,
         "json": json,
         "time": time,
@@ -274,7 +274,7 @@ def simple_code(language: str, code: str):
         "timedelta": datetime.timedelta,
         "timezone": datetime.timezone,
         "relativedelta": dateutil.relativedelta.relativedelta,
-        # 常量
+        # constants
         "True": True,
         "False": False,
         "None": None,
@@ -294,7 +294,7 @@ def simple_code(language: str, code: str):
 # def onto_guess_question(args: dict[str, any]):
 #     return workflow_onto_guess_question.execute(initial_state=args)
 
-# key=provider_id (tool_workflow_providers表主键)
+# key=provider_id (primary key of the tool_workflow_providers table)
 tool_list = {
     "langgenius/json_process/json_process": {
         "type": "builtin",

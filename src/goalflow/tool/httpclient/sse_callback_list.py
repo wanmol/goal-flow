@@ -21,7 +21,7 @@ logger = get_logger(__name__)
 
 def metaso_message_callback(data,*,node_id):
     """
-    处理密塔搜索的消息回调
+    Handle message callbacks from Metaso search
     """
     stream_writer = get_stream_writer()
     if data.startswith('{') and data.endswith('}'):
@@ -62,7 +62,7 @@ def metaso_message_callback(data,*,node_id):
 
 def internal_forward(data, *, node_id):
     """
-    内部代理转发
+    Internal proxy forwarding
     """
     stream_writer = get_stream_writer()
     stream_writer((CUSTOM_STREAM_MODE_PASSTHROUGH, data))
@@ -75,47 +75,47 @@ message_cb_list = {
 
 }
 
-# 正则表达式映射列表（支持更灵活的URL匹配）
+# Regex mapping list (supports more flexible URL matching)
 message_cb_regex_list = [
-    # 匹配metaso API的所有变体
+    # Match all variants of the metaso API
     (re.compile(r"https?://metaso\.cn/api/v1/chat/completions.*"), metaso_message_callback),
-    
-    # 匹配内部服务API，支持不同端口（服务名）
+
+    # Match internal service APIs, supporting different ports (service names)
     (re.compile(r"https?://aira-workflow-a2a:\d+/a2a/v1/tasks.*"), internal_forward),
 
     (re.compile(r"https?://10.3.18.217:\d+/a2a/v1/tasks.*"), internal_forward),
 
-    # 可以添加更多正则表达式匹配规则
+    # More regex matching rules can be added here
     # (re.compile(r"https?://example\.com/api/v1/.*"), example_callback),
 ]
 
 def get_callback_by_url(url):
     """
-    根据URL获取对应的回调函数，支持精确匹配和正则表达式匹配
-    
+    Get the corresponding callback function by URL, supporting exact matching and regex matching
+
     Args:
-        url: 请求的URL
-        
+        url: The requested URL
+
     Returns:
-        对应的回调函数，如果没有匹配则返回None
+        The corresponding callback function, or None if no match is found
     """
-    # 优先尝试精确匹配
+    # Try exact match first
     if url in message_cb_list:
         logger.info(f"URL精确匹配: {url}")
         return message_cb_list[url]
-    
-    # 然后尝试正则表达式匹配
+
+    # Then try regex matching
     for pattern, callback in message_cb_regex_list:
         if pattern.match(url):
             logger.info(f"URL正则匹配: {url} (模式: {pattern.pattern})")
             return callback
-    
+
     logger.warning(f"没有找到URL对应的回调函数: {url}")
-    
-    # internal_forward 作为默认回调返回（内部转发）
+
+    # internal_forward is returned as the default callback (internal forwarding)
     return internal_forward
 
-# 示例使用
+# Example usage
 if __name__ == "__main__":
     test_urls = [
         "https://metaso.cn/api/v1/chat/completions",

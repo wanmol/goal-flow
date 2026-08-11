@@ -1,7 +1,7 @@
 """
-研报管理服务
+Research report management service
 
-负责研报的创建、更新、查询、版本管理等操作
+Handles report creation, update, query, version management, and other operations
 """
 
 import uuid
@@ -16,24 +16,24 @@ logger = get_logger(__name__)
 
 
 class ReportService:
-    """研报管理服务"""
+    """Research report management service"""
     
     @staticmethod
     def _get_data(conv_vars: WorkflowConversationVariables) -> Dict[str, Any]:
         """
-        从 conversation variables 中获取数据，并处理反序列化
-        
+        Get data from conversation variables and handle deserialization
+
         Args:
-            conv_vars: 会话变量对象
-            
+            conv_vars: conversation variable object
+
         Returns:
-            反序列化后的数据字典
+            the deserialized data dict
         """
         if not conv_vars:
             return {}
         
         data = conv_vars.data
-        # 如果是字符串，需要反序列化
+        # If it is a string, it needs to be deserialized
         if isinstance(data, str):
             try:
                 data = json.loads(data)
@@ -52,23 +52,23 @@ class ReportService:
         content: str,
         research_framework: dict,
         research_results: list,
-        references: Optional[dict] = None,  # ✅ 文中引用（已过滤）
-        all_references: Optional[dict] = None,  # ✅ 新增：所有引用来源（未过滤）
+        references: Optional[dict] = None,  # ✅ in-text citations (filtered)
+        all_references: Optional[dict] = None,  # ✅ new: all citation sources (unfiltered)
         user_id: str = ""
     ) -> dict:
         """
-        创建新研报
-        
+        Create a new research report
+
         Args:
-            conversation_id: 会话ID
-            title: 报告标题
-            topic: 主题关键词
-            abstract: 摘要
-            content: 报告内容
-            research_framework: 研究框架
-            research_results: 研究结果
-            user_id: 用户ID
-        
+            conversation_id: conversation ID
+            title: report title
+            topic: topic keywords
+            abstract: abstract
+            content: report content
+            research_framework: research framework
+            research_results: research results
+            user_id: user ID
+
         Returns:
             {
                 "report_id": "report_xxx",
@@ -76,10 +76,10 @@ class ReportService:
                 "created_at": "..."
             }
         """
-        # 1. 生成研报 ID
+        # 1. Generate the report ID
         report_id = f"report_{uuid.uuid4().hex[:12]}"
-        
-        # 2. 创建研报数据结构
+
+        # 2. Create the report data structure
         new_report = {
             "report_id": report_id,
             "title": title,
@@ -94,23 +94,23 @@ class ReportService:
                     "content": content,
                     "research_framework": research_framework,
                     "research_results": research_results,
-                    "references": references or {},  # ✅ 文中引用（已过滤）
-                    "all_references": all_references or {},  # ✅ 所有引用来源（未过滤）
+                    "references": references or {},  # ✅ in-text citations (filtered)
+                    "all_references": all_references or {},  # ✅ all citation sources (unfiltered)
                     "generated_at": datetime.now().isoformat(),
-                    "modification": None,  # 初始版本
+                    "modification": None,  # initial version
                     "word_count": len(content)
                 }
             ]
         }
         
-        # 3. 获取现有 conversation_variables
+        # 3. Get the existing conversation_variables
         conv_vars = WorkflowConversationVariablesService.get_by_conversation_id(
             conversation_id
         )
         
         data = ReportService._get_data(conv_vars)
         
-        # 4. 更新研报集合
+        # 4. Update the report collection
         if "reports" not in data:
             data["reports"] = {}
         if "report_index" not in data:
@@ -119,12 +119,12 @@ class ReportService:
             data["metadata"] = {}
         
         data["reports"][report_id] = new_report
-        data["active_report_id"] = report_id  # 设置为当前活跃研报
-        data["report_index"][topic] = report_id  # 添加主题索引
+        data["active_report_id"] = report_id  # set as the current active report
+        data["report_index"][topic] = report_id  # add topic index
         data["metadata"]["total_reports"] = len(data["reports"])
         data["metadata"]["last_activity"] = datetime.now().isoformat()
         
-        # 5. 持久化到数据库
+        # 5. Persist to the database
         if conv_vars:
             WorkflowConversationVariablesService.update_by_conversation_id(
                 conv_vars=WorkflowConversationVariables(
@@ -157,25 +157,25 @@ class ReportService:
         content: str,
         research_framework: dict,
         research_results: list,
-        references: Optional[dict],  # ✅ 文中引用（已过滤）
+        references: Optional[dict],  # ✅ in-text citations (filtered)
         modification_instruction: str,
-        all_references: Optional[dict] = None,  # ✅ 新增：所有引用来源（未过滤）
+        all_references: Optional[dict] = None,  # ✅ new: all citation sources (unfiltered)
         user_id: str = ""
     ) -> dict:
         """
-        为研报添加新版本
-        
+        Add a new version to a research report
+
         Args:
-            conversation_id: 会话ID
-            report_id: 研报ID
-            title: 报告标题（可选，更新标题）
-            abstract: 摘要（可选，更新摘要）
-            content: 报告内容
-            research_framework: 研究框架
-            research_results: 研究结果
-            modification_instruction: 修改指令
-            user_id: 用户ID
-        
+            conversation_id: conversation ID
+            report_id: report ID
+            title: report title (optional, updates the title)
+            abstract: abstract (optional, updates the abstract)
+            content: report content
+            research_framework: research framework
+            research_results: research results
+            modification_instruction: modification instruction
+            user_id: user ID
+
         Returns:
             {
                 "report_id": "report_xxx",
@@ -183,7 +183,7 @@ class ReportService:
                 "created_at": "..."
             }
         """
-        # 1. 获取现有数据
+        # 1. Get the existing data
         conv_vars = WorkflowConversationVariablesService.get_by_conversation_id(
             conversation_id
         )
@@ -196,42 +196,42 @@ class ReportService:
         if not report:
             raise ValueError(f"Report {report_id} not found")
         
-        # 2. 更新标题和摘要（如果提供）
+        # 2. Update the title and abstract (if provided)
         if title:
             report["title"] = title
         if abstract:
             report["abstract"] = abstract
         
-        # 3. 创建新版本
+        # 3. Create a new version
         new_version_number = report["current_version"] + 1
         new_version = {
             "version": new_version_number,
             "content": content,
             "research_framework": research_framework,
             "research_results": research_results,
-            "references": references or {},  # ✅ 文中引用（已过滤）
-            "all_references": all_references or {},  # ✅ 所有引用来源（未过滤）
+            "references": references or {},  # ✅ in-text citations (filtered)
+            "all_references": all_references or {},  # ✅ all citation sources (unfiltered)
             "generated_at": datetime.now().isoformat(),
             "modification": modification_instruction,
             "word_count": len(content)
         }
         
-        # 4. 添加到版本历史
+        # 4. Add to the version history
         report["versions"].append(new_version)
         
-        # 5. 限制版本历史数量（保留最近10个）
+        # 5. Limit the number of versions in the history (keep the most recent 10)
         if len(report["versions"]) > 10:
             report["versions"] = report["versions"][-10:]
-            # 重新编号
+            # Renumber
             for i, v in enumerate(report["versions"], start=new_version_number-9):
                 v["version"] = i
         
-        # 6. 更新元数据
+        # 6. Update the metadata
         report["current_version"] = new_version_number
         report["last_updated_at"] = datetime.now().isoformat()
         data["metadata"]["last_activity"] = datetime.now().isoformat()
         
-        # 7. 持久化
+        # 7. Persist
         WorkflowConversationVariablesService.update_by_conversation_id(
             conv_vars=WorkflowConversationVariables(
                 conversation_id=conversation_id,
@@ -255,13 +255,13 @@ class ReportService:
         version: Optional[int] = None
     ) -> Optional[dict]:
         """
-        获取研报（指定版本或最新版本）
-        
+        Get a research report (a specific version or the latest version)
+
         Args:
-            conversation_id: 会话ID
-            report_id: 研报ID
-            version: 版本号（可选，不传则返回最新版本）
-        
+            conversation_id: conversation ID
+            report_id: report ID
+            version: version number (optional; if omitted, returns the latest version)
+
         Returns:
             {
                 "report_id": "report_xxx",
@@ -283,11 +283,11 @@ class ReportService:
         if not report:
             return None
         
-        # 如果未指定版本，返回最新版本
+        # If no version is specified, return the latest version
         if version is None:
             version = report["current_version"]
         
-        # 查找指定版本
+        # Find the specified version
         for v in report["versions"]:
             if v["version"] == version:
                 return {
@@ -306,14 +306,14 @@ class ReportService:
         report_id: str
     ) -> bool:
         """
-        切换当前活跃研报
-        
+        Switch the current active research report
+
         Args:
-            conversation_id: 会话ID
-            report_id: 研报ID
-        
+            conversation_id: conversation ID
+            report_id: report ID
+
         Returns:
-            bool: 是否成功
+            bool: whether it succeeded
         """
         conv_vars = WorkflowConversationVariablesService.get_by_conversation_id(
             conversation_id
@@ -326,10 +326,10 @@ class ReportService:
         if report_id not in data["reports"]:
             return False
         
-        # 更新活跃研报
+        # Update the active report
         data["active_report_id"] = report_id
         
-        # 持久化
+        # Persist
         WorkflowConversationVariablesService.update_by_conversation_id(
             conv_vars=WorkflowConversationVariables(
                 conversation_id=conversation_id,
@@ -344,13 +344,13 @@ class ReportService:
     @staticmethod
     def get_active_report_id(conversation_id: str) -> Optional[str]:
         """
-        获取当前活跃的研报 ID
-        
+        Get the ID of the current active research report
+
         Args:
-            conversation_id: 会话ID
-        
+            conversation_id: conversation ID
+
         Returns:
-            str: 活跃研报ID，如果不存在则返回 None
+            str: the active report ID, or None if it does not exist
         """
         conv_vars = WorkflowConversationVariablesService.get_by_conversation_id(
             conversation_id
@@ -365,13 +365,13 @@ class ReportService:
     @staticmethod
     def list_reports(conversation_id: str) -> List[dict]:
         """
-        列出会话下的所有研报
-        
+        List all research reports under a conversation
+
         Args:
-            conversation_id: 会话ID
-        
+            conversation_id: conversation ID
+
         Returns:
-            List[dict]: 研报列表
+            List[dict]: list of research reports
         """
         conv_vars = WorkflowConversationVariablesService.get_by_conversation_id(
             conversation_id
@@ -383,7 +383,7 @@ class ReportService:
         
         reports = []
         for report_id, report_data in data["reports"].items():
-            # 获取最新版本的字数
+            # Get the word count of the latest version
             latest_version = report_data.get("versions", [{}])[-1]
             word_count = latest_version.get("word_count", 0)
             
@@ -399,7 +399,7 @@ class ReportService:
                 "last_updated_at": report_data.get("last_updated_at", "")
             })
         
-        # 按最后更新时间排序
+        # Sort by last updated time
         reports.sort(key=lambda x: x["last_updated_at"], reverse=True)
         
         return reports
@@ -407,14 +407,14 @@ class ReportService:
     @staticmethod
     def get_report_versions(conversation_id: str, report_id: str) -> Optional[List[dict]]:
         """
-        获取研报的所有版本历史
-        
+        Get the full version history of a research report
+
         Args:
-            conversation_id: 会话ID
-            report_id: 研报ID
-        
+            conversation_id: conversation ID
+            report_id: report ID
+
         Returns:
-            List[dict]: 版本列表
+            List[dict]: list of versions
         """
         conv_vars = WorkflowConversationVariablesService.get_by_conversation_id(
             conversation_id
@@ -428,7 +428,7 @@ class ReportService:
         if not report:
             return None
         
-        # 返回版本历史（不包含完整内容，只有元数据）
+        # Return the version history (without full content, only metadata)
         versions = []
         for v in report.get("versions", []):
             versions.append({

@@ -1,7 +1,7 @@
 """
-Trace 相关功能模块
+Trace-related functionality module
 
-trace 机制统一使用 langfuse（通过 base_workflow 中的 CallbackHandler 接入）。
+The trace mechanism uniformly uses langfuse (integrated via the CallbackHandler in base_workflow).
 """
 from goalflow.trace.langfuse import TruncatedCallbackHandler
 

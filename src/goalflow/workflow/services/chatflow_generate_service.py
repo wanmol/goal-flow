@@ -46,12 +46,12 @@ class ChatflowGenerateService:
     def __init__(self, workflow: BaseWorkflow[GenericState]):
         self.workflow = workflow
         self.stream_processor = ChatflowStreamProcessor(workflow)
-        #  调试时候手动加载  环境变量  .env  TODO
+        #  manually load environment variables .env during debugging  TODO
         # self.app = create_app(os.getenv('FASTAPI_ENV', 'default'))
 
     @staticmethod
     def _is_stopped(key: str) -> bool:
-        # TODO 从redis中获取stop标记
+        # TODO get the stop mark from redis
         stopped = redis_client.get(key)
         if stopped:
             return True
@@ -59,11 +59,11 @@ class ChatflowGenerateService:
 
     @staticmethod
     def set_stopped(key: str):
-        # TODO 把stop标记放到redis中
+        # TODO put the stop mark into redis
         redis_client.set(key, CONST_REDIS_STOP_MARK_TIMEOUT)
 
-    # 流程开始时插入消息
-    # 创建应用实例
+    # insert message at the start of the flow
+    # create application instance
     def insert_message(self, initial_state: BaseState):
 
         default_scene_type = os.getenv("WORKFLOW_SCENE_TYPE", "WANMOL") or "WANMOL"
@@ -92,10 +92,10 @@ class ChatflowGenerateService:
         )
         MessageService.update(message)
 
-    # 流式执行
+    # streaming execution
     def generate(self, initial_state: BaseState):
         request_id = initial_state.get("request_id")
-        # 从 node_span_ids["trace_context"] 获取 trace_id 和 parent_span_id
+        # get trace_id and parent_span_id from node_span_ids["trace_context"]
         node_span_ids = initial_state.get("node_span_ids", {})
         trace_ctx = node_span_ids.get("trace_context", {}) if isinstance(node_span_ids, dict) else {}
         trace_id = trace_ctx.get("trace_id") if isinstance(trace_ctx, dict) else None
@@ -107,7 +107,7 @@ class ChatflowGenerateService:
             UPSTREAM_SPAN_ID_HEADER_NAME: span_id,
         })
 
-        # 插入消息
+        # insert message
         start_time = time.perf_counter()
         message = self.insert_message(initial_state)
         logger.info(f"insert message cost time: {time.perf_counter() - start_time}")
@@ -116,10 +116,10 @@ class ChatflowGenerateService:
         message_uuid = message.message_id
         if message_id is None or message_uuid is None:
             raise WorkflowError("插入消息失败")
-        
+
         conversation_id = message.conversation_id
         initial_state["sys_conversation_id"] = conversation_id
-        
+
         use_end_stream = initial_state.get("sys_use_end_stream",True)
 
         # Start streaming
@@ -156,8 +156,8 @@ class ChatflowGenerateService:
                 "conversation_id": conversation_id,
                 "user_id": user_id,
                 "request_id": request_id,
-                # 兼容最新版本的langgraph， 如果基础镜像升级，langgraph升级到1.0以上，需要添加metadata字段，
-                # 否则structlog日志输出无法自动追加message_id, conversation_id, user_id
+                # compatible with the latest version of langgraph; if the base image is upgraded and langgraph is upgraded above 1.0, the metadata field needs to be added,
+                # otherwise structlog log output cannot automatically append message_id, conversation_id, user_id
                 "metadata":{
                     "message_id": message_uuid,
                     "conversation_id": conversation_id,
@@ -167,7 +167,7 @@ class ChatflowGenerateService:
                 UPSTREAM_SPAN_ID_HEADER_NAME: span_id
             }
             stream_method = self.workflow.stream
-            # human in the loop 恢复执行
+            # human in the loop resume execution
             hitl_review_id = initial_state.get("hitl_review_id")
             if hitl_review_id:
                 logger.info(f"human in the loop resume , hitl_review_id: {hitl_review_id}")
@@ -196,7 +196,7 @@ class ChatflowGenerateService:
                 
                 chunk_counter += 1
 
-                # 每输出10个chunk进行stop检查，否则检查太频繁对性能有一定的影响（占用io资源）
+                # perform a stop check every 10 chunks, otherwise checking too frequently has some performance impact (occupies io resources)
                 use_check_stop = chunk_counter % STREAM_OUTPUT_STOP_CHECK_INTERVAL == 0
 
                 stopped_cache_key = f"generate_task_stopped:{workflow_run_id}"
@@ -279,7 +279,7 @@ class ChatflowGenerateService:
                     else:
                         event_type = "message_end"
 
-                    # 兼容gpt相关模型
+                    # compatible with gpt-related models
                     if metadata is not None and "usage" in metadata and metadata["usage"].get("prompt_tokens") == 0:
                         metadata["usage"]["completion_tokens"] = completion_tokens
                         sys_query = initial_state["sys_query"]
@@ -301,7 +301,7 @@ class ChatflowGenerateService:
                         metadata=metadata,
                     )
 
-                    # TODO 调试,线上环境关闭
+                    # TODO debugging, disable in production environment
                     # logger.info(f"stream chunk: {msg_chunk}")
 
                     yield msg_chunk
@@ -384,13 +384,13 @@ class ChatflowGenerateService:
 
         # self.stream_processor.process(init_state)
 
-    # 非流式执行
+    # non-streaming execution
     def execute(self, initial_state: BaseState):
         request_id = initial_state.get("request_id")
         user_id = initial_state.get("sys_user_id")
         request_id_ctx.set(request_id)
 
-        # 插入消息
+        # insert message
         start_time = time.perf_counter()
         message = self.insert_message(initial_state)
         logger.info(f"insert message cost time: {time.perf_counter() - start_time}")
@@ -424,7 +424,7 @@ class ChatflowGenerateService:
 
             answer = ""
 
-            # 如果chatflow中配置了多个answer节点，一般只有一个answer最后会被执行
+            # if multiple answer nodes are configured in the chatflow, generally only one answer is executed in the end
             for var_name, value in output.items():
                 if var_name.endswith("_answer"):
                     answer = value
@@ -447,9 +447,9 @@ class ChatflowGenerateService:
             self.clear_resource(initial_state)
             
     def clear_resource(self, initial_state: BaseState):
-        """清除资源"""
-        
-        # 如果是openai格式请求,则删除redis中的历史消息
+        """Clear resources"""
+
+        # if it is an openai format request, delete the history messages from redis
         ChatCompletionRequestCache.delete_request_cache(
                 state=initial_state,
         )

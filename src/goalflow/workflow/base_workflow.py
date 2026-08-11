@@ -44,14 +44,14 @@ logger = get_logger(__name__)
 
 
 def _iter_langfuse_handlers(callbacks: Any) -> Iterable[Any]:
-    """规范化 config["callbacks"]，yield 每一个 callback handler 实例。
+    """Normalize config["callbacks"] and yield each callback handler instance.
 
-    config["callbacks"] 可能是：
-    - None / 空：什么都不 yield
-    - list[BaseCallbackHandler]：直接 yield 每个元素
-    - CallbackManager：yield 其 .handlers 列表
-    - 单个 handler：直接 yield
-    - 嵌套 list（包含 CallbackManager）：递归展开
+    config["callbacks"] may be:
+    - None / empty: yield nothing
+    - list[BaseCallbackHandler]: yield each element directly
+    - CallbackManager: yield its .handlers list
+    - a single handler: yield it directly
+    - nested list (containing a CallbackManager): expand recursively
     """
     if not callbacks:
         return
@@ -131,9 +131,9 @@ class BaseWorkflow(Generic[GenericState],ABC):
         
         self._proc_end_stream_routes()
         
-        # 处理迭代节点
+        # process iteration nodes
         self._proc_iteration_nodes()
-        #处理循环节点
+        #process loop nodes
         self._proc_loop_nodes()
         
         self._analysis_node_level()
@@ -328,7 +328,7 @@ class BaseWorkflow(Generic[GenericState],ABC):
         
         source_type = source_node.type
         
-        # 分支节点没有办法静态定义边，约定如果是分支节点需要在节点内部进行路由处理
+        # branch nodes cannot statically define edges; by convention branch nodes handle routing internally
         if_branch_node = (
             source_type == WfNodeType.IF_ELSE.value or
             source_type == WfNodeType.QUESTION_CLASSIFIER.value
@@ -421,7 +421,7 @@ class BaseWorkflow(Generic[GenericState],ABC):
         config["configurable"] = configurable
         initial_state["rt_thread_id"] = configurable["thread_id"]
 
-        # Setup langfuse callback for tracing (errors logged,不影响主流程)
+        # Setup langfuse callback for tracing (errors logged, does not affect the main flow)
         self._setup_langfuse_callback(config)
 
         return self.compiled_graph.invoke(
@@ -461,7 +461,7 @@ class BaseWorkflow(Generic[GenericState],ABC):
         config["configurable"] = configurable
         initial_state["rt_thread_id"] = configurable["thread_id"]
 
-        # Setup langfuse callback for tracing (errors logged,不影响主流程)
+        # Setup langfuse callback for tracing (errors logged, does not affect the main flow)
         self._setup_langfuse_callback(config)
 
         yield from self.compiled_graph.stream(
@@ -482,7 +482,7 @@ class BaseWorkflow(Generic[GenericState],ABC):
             interrupt_id = resume_data["interrupt_id"]
             resume_data = {interrupt_id: resume_data}
 
-        # Setup langfuse callback for tracing (errors logged,不影响主流程)
+        # Setup langfuse callback for tracing (errors logged, does not affect the main flow)
         self._setup_langfuse_callback(config)
 
         yield from self.compiled_graph.stream(
@@ -497,7 +497,7 @@ class BaseWorkflow(Generic[GenericState],ABC):
         config: RunnableConfig,
     )-> Any:
 
-        # Setup langfuse callback for tracing (errors logged,不影响主流程)
+        # Setup langfuse callback for tracing (errors logged, does not affect the main flow)
         self._setup_langfuse_callback(config)
 
         return self.compiled_graph.invoke(
@@ -513,11 +513,11 @@ class BaseWorkflow(Generic[GenericState],ABC):
         Args:
             config: RunnableConfig to add callbacks and metadata to
         """
-        # 如果 config 里已经有 langfuse CallbackHandler（含 TruncatedCallbackHandler），
-        # 说明父级已经通过 var_child_runnable_config 把 handler 透传下来了
-        # （典型场景：子工作流 execute() 进入时继承父级 callbacks），
-        # 此时**不要**再创建一个新的 TruncatedCallbackHandler——
-        # 否则会出现两个独立 _runs 字典、各自建 span，导致子工作流节点重复上报。
+        # if config already has a langfuse CallbackHandler (including TruncatedCallbackHandler),
+        # it means the parent has already passed the handler down via var_child_runnable_config
+        # (typical scenario: a sub-workflow inherits the parent callbacks when execute() is entered),
+        # in this case do **not** create a new TruncatedCallbackHandler --
+        # otherwise there would be two independent _runs dicts, each creating its own span, causing sub-workflow nodes to be reported twice.
         if config and config.get("callbacks"):
             for h in _iter_langfuse_handlers(config.get("callbacks")):
                 if isinstance(h, CallbackHandler):
@@ -603,7 +603,7 @@ class BaseWorkflow(Generic[GenericState],ABC):
                 
                 node.func = tool_info["func"]
                 
-                # 递归初始化工具节点要执行的函数
+                # recursively initialize the function to be executed by the tool node
                 if provider_type == ToolProviderType.WORKFLOW :
                     
                     subworkflow = tool_info["workflow_instance"]
@@ -633,7 +633,7 @@ class BaseWorkflow(Generic[GenericState],ABC):
                     tool_type = item.type
                     if tool_type == ToolProviderType.WORKFLOW.value :
                         
-                        # 递归初始化工具节点要执行的函数
+                        # recursively initialize the function to be executed by the tool node
                         subworkflow = tool_info["workflow_instance"]
                         subworkflow = cast(BaseWorkflow, subworkflow)
                         

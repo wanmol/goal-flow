@@ -65,7 +65,7 @@ class WorkflowGenerateService:
         )
         MessageService.update(message)
 
-    # 流式执行
+    # streaming execution
     def generate(self, initial_state: GenericState):
         # Start streaming
         chunk_counter = 0
@@ -74,8 +74,8 @@ class WorkflowGenerateService:
         user_id = initial_state.get("sys_user_id")
         request_id_ctx.set(request_id)
 
-        # workflow暂不考虑消息持久化存储，不像chatflow有多轮会话的概念
-        # 插入消息
+        # workflow does not consider message persistence for now, unlike chatflow which has the concept of multi-turn conversations
+        # insert message
         start_time = time.perf_counter()
         #message = self.insert_message(initial_state)
         #logger.info(f"insert message cost time: {time.perf_counter() - start_time}")
@@ -147,7 +147,7 @@ class WorkflowGenerateService:
                     data = node_data
                     #data["outputs"] = outputs
 
-                    # end节点直接输出outputs，没有经过output_variables包装
+                    # end node directly outputs outputs, without being wrapped in output_variables
                     if node_type == WfNodeType.END.value:
                         if "outputs" in outputs:
                             outputs = outputs["outputs"]
@@ -175,7 +175,7 @@ class WorkflowGenerateService:
                         data=outputs,
                         workflow_run_id=workflow_run_id,
                     )
-                # llm节点
+                # llm node
                 elif isinstance(stream_event, NodeRunStreamChunkEvent):
                     stream_event = cast(NodeRunStreamChunkEvent,stream_event)
                     node_id = stream_event.node_id
@@ -245,7 +245,7 @@ class WorkflowGenerateService:
         #self.update_message(initial_state, answer=message_content, mid=message_id)
         #self.stream_processor.process(init_state)
     
-    # 非流式执行
+    # non-streaming execution
     def execute(self, initial_state: BaseState):
         request_id = initial_state.get("request_id")
         user_id = initial_state.get("sys_user_id")

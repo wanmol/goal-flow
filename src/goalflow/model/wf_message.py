@@ -1,5 +1,5 @@
 import time
-from datetime import datetime  # 替换 import datetime
+from datetime import datetime  # replaces import datetime
 from typing import List
 from typing import Optional, Dict
 
@@ -72,7 +72,7 @@ class MessageDB:
     @classmethod
     def create(cls, message: Message) -> Message:
         """
-        对话记录存储到DB
+        Store the conversation record to the DB
         """
 
         start = time.time()
@@ -86,7 +86,7 @@ class MessageDB:
             if message is not None:
                 session.expunge(
                     message
-                )  # 将对象从会话中分离，这样在会话外也可以访问属性
+                )  # detach the object from the session so its attributes can be accessed outside the session
 
         logger.info(f"create_message time: {time.time() - start}")
 
@@ -103,9 +103,9 @@ class MessageDB:
         last_updater_id: str,
     ) -> Optional[Message]:
         """
-        更新消息
-        mid: 消息id
-        answer: 答案
+        Update a message
+        mid: message id
+        answer: answer
         """
         update_data = {
             "answer": answer,
@@ -128,9 +128,9 @@ class MessageDB:
     @classmethod
     def delete(cls, *, mid: int) -> bool:
         """
-        删除消息
-        mid: 消息id
-        TODO 有删除消息的可能吗 ？？？
+        Delete a message
+        mid: message id
+        TODO is deleting messages even possible ???
         """
         with Database.get_session() as session:
             message = session.query(Message).filter(Message.id == mid).first()
@@ -143,8 +143,8 @@ class MessageDB:
     @classmethod
     def get_by_id(cls, *, mid: int) -> Optional[Message]:
         """
-        根据id查询消息
-        mid: 消息id
+        Query a message by id
+        mid: message id
         """
         with Database.get_session() as session:
             message = session.query(Message).filter(Message.id == mid).first()
@@ -157,8 +157,8 @@ class MessageDB:
     @classmethod
     def get_by_message_id(cls, *, message_id: str) -> Optional[Message]:
         """
-        根据message_id查询消息
-        message_id: 消息message_id
+        Query a message by message_id
+        message_id: message message_id
         """
         with Database.get_session() as session:
             message = (
@@ -174,9 +174,9 @@ class MessageDB:
         cls, *, conversation_id: str, limit: int = 25
     ) -> List[Message]:
         """
-        根据会话id，分页条件查询数据,默认查询20条数据
-        conversation_id: 会话id
-        limit: 分页大小，默认25条
+        Query data by conversation id with pagination; defaults to 20 records
+        conversation_id: conversation id
+        limit: page size, defaults to 25 records
         """
         if not conversation_id:
             raise ValueError("conversation_id不能为空")

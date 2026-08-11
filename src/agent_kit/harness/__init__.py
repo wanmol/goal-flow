@@ -1,4 +1,4 @@
-"""agent_kit.harness：跨业务 Agent 治理底座。"""
+"""agent_kit.harness: cross-business Agent governance foundation."""
 from agent_kit.harness.settings import (
     HARNESS_SETTINGS,
     HarnessSettings,

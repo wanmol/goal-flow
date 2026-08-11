@@ -48,7 +48,7 @@ class WorkflowStreamProcessor(Generic[GenericState]):
         self.rest_node_ids = [node.id for node in self.workflow.nodes]
 
     def process(self, generator: Generator[Dict, None, None]) -> Generator[StreamEventChunk, None, None]:
-        # 保存每个节点的输出
+        # save the output of each node
         runtime_state = {}
         for stream_mode,event_data in generator:
             #print(stream_mode,event_data)
@@ -75,7 +75,7 @@ class WorkflowStreamProcessor(Generic[GenericState]):
                         node_id
                     ]
                 else:
-                    #这里肯定是llm节点（只有llm节点的stream_mode=StreamMode.MESSAGES）
+                    #this must be an llm node (only llm nodes have stream_mode=StreamMode.MESSAGES)
                     local_runtime_state = {"node_id":node_id,"source_handle":"source"}
                     
                     stream_out_end_node_ids = self._get_stream_out_end_node_ids(local_runtime_state)
@@ -140,7 +140,7 @@ class WorkflowStreamProcessor(Generic[GenericState]):
                     #    chunk_content=content,
                     #)
                     
-                    #如果end节点配置了多个来源，则每个来源的输出用换行符隔开
+                    #if the end node is configured with multiple sources, the output of each source is separated by a newline
                     if self.has_output and node_id not in self.output_node_ids:
                         event.chunk_content = "\n" + event.chunk_content
                     self.output_node_ids.add(event.node_id)
@@ -163,7 +163,7 @@ class WorkflowStreamProcessor(Generic[GenericState]):
 
                 node : BaseNode = self.workflow.get_node(node_id)
                 
-                # 工作流结束输出内容
+                # workflow end output content
                 if node.type == WfNodeType.END:
                     event_data = event_data["outputs"]
 
@@ -306,8 +306,8 @@ class WorkflowStreamProcessor(Generic[GenericState]):
                 if not value_selector:
                     continue
 
-                # check chunk node id is before current node id or equal to current node id
-                # 暂时不考虑节点多参数（作为llm节点固定是text，作为其它节点需要等到节点执行结束返回结果，因此不必要比较selector，只需比较节点id即可）
+                # check whether the chunk node id is before the current node id or equal to the current node id
+                # for now do not consider multi-parameter nodes (as an llm node it is always text, as other nodes it needs to wait for the node to finish executing and return a result, so there is no need to compare the selector, only the node id needs to be compared)
                 if value_selector[0] != node.id:
                     continue
 
@@ -326,7 +326,7 @@ class WorkflowStreamProcessor(Generic[GenericState]):
         node_id = runtime_state.get("node_id")
         node = self.workflow.get_node(node_id)
         
-        # TODO  子流程的message会在主流程捕获，需要查明原因
+        # TODO  the sub-flow's messages are captured in the main flow, the cause needs to be investigated
         if node is None:
             return
         

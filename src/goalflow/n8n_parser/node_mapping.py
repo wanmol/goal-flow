@@ -1,7 +1,7 @@
-"""n8n 节点类型 → goalflow 节点种类的映射表。
+"""Mapping table from n8n node types to goalflow node kinds.
 
-覆盖策略：核心子集 + 占位兜底。
-映射表里没有的类型一律走 ``PLACEHOLDER``，生成占位 no-op 节点并记入警告清单。
+Coverage strategy: core subset + placeholder fallback.
+Any type not in the mapping table goes to ``PLACEHOLDER``, generating a no-op placeholder node and adding it to the warning list.
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Optional
 
 
 class GoloNodeKind(Enum):
-    """转换目标的 goalflow 节点种类。"""
+    """The goalflow node kind that is the conversion target."""
 
     START = "start"
     END = "end"
@@ -22,8 +22,8 @@ class GoloNodeKind(Enum):
     PLACEHOLDER = "placeholder"
 
 
-# n8n 短类型名（去掉命名空间前缀后）→ goalflow 节点种类。
-# 短类型名见 N8nNode.short_type：
+# n8n short type name (with the namespace prefix removed) → goalflow node kind.
+# See N8nNode.short_type for short type names:
 #   n8n-nodes-base.httpRequest        → httpRequest
 #   @n8n/n8n-nodes-langchain.agent    → agent
 N8N_SHORT_TYPE_TO_KIND = {
@@ -40,7 +40,7 @@ N8N_SHORT_TYPE_TO_KIND = {
     "emailReadImap": GoloNodeKind.START,
     # ── http ──
     "httpRequest": GoloNodeKind.HTTP_REQUEST,
-    # ── 分支 ──
+    # ── branch ──
     "if": GoloNodeKind.IF_ELSE,
     "filter": GoloNodeKind.IF_ELSE,
     # ── code ──
@@ -52,17 +52,17 @@ N8N_SHORT_TYPE_TO_KIND = {
     "openAi": GoloNodeKind.LLM,
     "lmChatOpenAi": GoloNodeKind.LLM,
     "chainLlm": GoloNodeKind.LLM,
-    # ── 终端 ──
+    # ── terminal ──
     "respondToWebhook": GoloNodeKind.END,
     "noOp": GoloNodeKind.END,
 }
 
 
 def map_node_kind(short_type: str) -> GoloNodeKind:
-    """把 n8n 短类型名映射到 goalflow 节点种类，未知类型返回 PLACEHOLDER。"""
+    """Map an n8n short type name to a goalflow node kind; unknown types return PLACEHOLDER."""
     return N8N_SHORT_TYPE_TO_KIND.get(short_type, GoloNodeKind.PLACEHOLDER)
 
 
 def is_supported(short_type: str) -> bool:
-    """该 n8n 类型是否有真实的 goalflow 节点对应（非占位）。"""
+    """Whether this n8n type has a real goalflow node (not a placeholder)."""
     return short_type in N8N_SHORT_TYPE_TO_KIND

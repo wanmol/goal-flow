@@ -1,4 +1,4 @@
-"""``ModelSkipMiddleware`` 顶层公开入口。"""
+"""``ModelSkipMiddleware`` top-level public entry point."""
 from agent_kit.harness.middleware.model_skip import (
     ModelSkipMiddleware,
     SkipPredicate,

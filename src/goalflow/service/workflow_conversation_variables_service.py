@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 
 class WorkflowConversationVariablesService:
     """
-    工作流会话变量服务
+    Workflow conversation variables service
     """
 
     @staticmethod
@@ -20,14 +20,14 @@ class WorkflowConversationVariablesService:
         conversation_id: str, data: Dict[str, Any], creator_id: str
     ) -> WorkflowConversationVariables:
         """
-        创建工作流会话变量
+        Create workflow conversation variables
 
         Args:
-            conversation_id: 会话ID
-            data: 变量数据
+            conversation_id: conversation ID
+            data: variable data
 
         Returns:
-            WorkflowConversationVariables: 创建的变量对象
+            WorkflowConversationVariables: the created variable object
         """
         start_time = time.time()
 
@@ -51,15 +51,15 @@ class WorkflowConversationVariablesService:
         obj: WorkflowConversationVariables,
     ) -> Optional[WorkflowConversationVariables]:
         """
-        更新工作流会话变量
+        Update workflow conversation variables
 
         Args:
-            obj: 工作流会话变量
-            包含数据 id conversation_id 和 data
+            obj: workflow conversation variables
+            contains data: id, conversation_id and data
 
 
         Returns:
-            WorkflowConversationVariables: 更新后的变量对象
+            WorkflowConversationVariables: the updated variable object
         """
         if not obj.id:
             raise ValueError("id不能为空")
@@ -74,15 +74,15 @@ class WorkflowConversationVariablesService:
         *, conv_vars: WorkflowConversationVariables
     ) -> Optional[WorkflowConversationVariables]:
         """
-        更新工作流会话变量
+        Update workflow conversation variables
 
         Args:
-            conv_vars: 工作流会话变量
-            包含数据 id conversation_id 和 data
+            conv_vars: workflow conversation variables
+            contains data: id, conversation_id and data
 
 
         Returns:
-            WorkflowConversationVariables: 更新后的变量对象
+            WorkflowConversationVariables: the updated variable object
         """
         if not conv_vars.conversation_id:
             raise ValueError("conversation_id不能为空")
@@ -96,13 +96,13 @@ class WorkflowConversationVariablesService:
         conversation_id: str,
     ) -> Optional[WorkflowConversationVariables]:
         """
-        根据会话ID获取工作流会话变量
+        Get workflow conversation variables by conversation ID
 
         Args:
-            conversation_id: 会话ID
+            conversation_id: conversation ID
 
         Returns:
-            WorkflowConversationVariables: 变量对象，如果不存在则返回None
+            WorkflowConversationVariables: the variable object, or None if it does not exist
         """
         if not conversation_id:
             raise ValueError("conversation_id不能为空")
@@ -114,13 +114,13 @@ class WorkflowConversationVariablesService:
     @staticmethod
     def get_by_id(vid: int) -> Optional[WorkflowConversationVariables]:
         """
-        根据ID获取工作流会话变量
+        Get workflow conversation variables by ID
 
         Args:
-            vid: 变量记录ID
+            vid: variable record ID
 
         Returns:
-            WorkflowConversationVariables: 变量对象，如果不存在则返回None
+            WorkflowConversationVariables: the variable object, or None if it does not exist
         """
         if not vid:
             raise ValueError("vid不能为空")
@@ -130,13 +130,13 @@ class WorkflowConversationVariablesService:
     @staticmethod
     def delete(conversation_id: str) -> bool:
         """
-        删除工作流会话变量
+        Delete workflow conversation variables
 
         Args:
-            conversation_id: 会话ID
+            conversation_id: conversation ID
 
         Returns:
-            bool: 删除成功返回True，否则返回False
+            bool: True if deletion succeeded, otherwise False
         """
         if not conversation_id:
             raise ValueError("conversation_id不能为空")

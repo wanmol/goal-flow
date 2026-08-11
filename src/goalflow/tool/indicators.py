@@ -7,7 +7,7 @@ from goalflow.node import BaseNode
 
 def execute_time_indicator():
     """
-    方法执行时间
+    Method execution time
     """
 
     def decorator(func: Callable):

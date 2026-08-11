@@ -1,4 +1,4 @@
-"""``SensitiveCheckMiddleware`` 顶层公开入口。"""
+"""``SensitiveCheckMiddleware`` top-level public entry point."""
 from agent_kit.harness.middleware.sensitive_check_middleware import (
     SensitiveCheckMiddleware,
 )

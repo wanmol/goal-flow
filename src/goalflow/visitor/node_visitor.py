@@ -202,9 +202,9 @@ class DifyNodeAbstractVisitor(ABC):
 class DifyNodeVisitor(DifyNodeAbstractVisitor):
     """Concrete visitor for generating node code."""
 
-    # http 节点鉴权 key 的运行时化：URL 前缀 → 环境变量名。
-    # 命中前缀的 http 节点，其 api_key 在生成代码里改为 os.getenv(<VAR>)，
-    # 而非硬编码明文。以后新增第三方只需在此加一行。
+    # Runtime-izing the http node auth key: URL prefix -> environment variable name.
+    # For http nodes matching a prefix, their api_key is changed to os.getenv(<VAR>) in the generated code,
+    # instead of a hardcoded plaintext value. To add a new third party in the future, just add one line here.
     AUTH_KEY_ENV_BY_URL_PREFIX: dict[str, str] = {
         "https://qianfan.baidubce.com": "QIANFAN_API_KEY",
     }
@@ -291,7 +291,7 @@ class DifyNodeVisitor(DifyNodeAbstractVisitor):
         {node_var_name}.source_handle_target_map ={dict(source_handle_target_map)}
             """
         else:
-            # parent_id 非空，说明是在循环或者迭代节点中
+            # A non-empty parent_id means it is inside a loop or iteration node
             if node.parentId is None:
                 code += f'\n        self.graph.add_node("{node.id}", {node_var_name})'
             if (node.data.type not in [
@@ -481,8 +481,8 @@ class DifyNodeVisitor(DifyNodeAbstractVisitor):
         #self.graph.add_node("{node.id}", http_node)
         self.nodes.append(http_node_{node.id})
 '''
-        # 把 api_key 的哨兵 '__ENV_<VAR>__' 替换成裸表达式 os.getenv('<VAR>')，
-        # 使生成代码在运行时从环境变量读取密钥（生成文件已 import os）。
+        # Replace the api_key sentinel '__ENV_<VAR>__' with the bare expression os.getenv('<VAR>'),
+        # so the generated code reads the key from an environment variable at runtime (the generated file already imports os).
         for env_var in self.AUTH_KEY_ENV_BY_URL_PREFIX.values():
             code = code.replace(
                 f"'__ENV_{env_var}__'", f"os.getenv('{env_var}')"
@@ -1067,9 +1067,9 @@ class DifyNodeVisitor(DifyNodeAbstractVisitor):
     def _format_http_node_authorization(self, auth:Optional[HttpNodeAuthorizationConfig], url:str="") -> dict:
         """Format http node authorization (simplified).
 
-        当 url 命中 AUTH_KEY_ENV_BY_URL_PREFIX 中的前缀时，api_key 用哨兵占位
-        (``__ENV_<VAR>__``)，由 visit_http_request 在内联后替换成 os.getenv 表达式，
-        以便生成代码在运行时从环境变量读取密钥，而非硬编码明文。
+        When the url matches a prefix in AUTH_KEY_ENV_BY_URL_PREFIX, api_key uses a sentinel placeholder
+        (``__ENV_<VAR>__``), which visit_http_request replaces with an os.getenv expression after inlining,
+        so the generated code reads the key from an environment variable at runtime instead of a hardcoded plaintext value.
         """
         if not auth:
             return None

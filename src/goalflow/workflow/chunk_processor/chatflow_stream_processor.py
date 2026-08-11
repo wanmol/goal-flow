@@ -43,11 +43,11 @@ class ChatflowStreamProcessor(Generic[GenericState]):
         workflow: BaseWorkflow[GenericState]
     ):
         self.workflow = workflow
-        # 记录每个answer_node_id下的输出路由配置
+        # record the output route config under each answer_node_id
         self.generate_routes = workflow.answer_stream_generate_routes
-        # 记录每个answer_node_id下的next路由项位置
+        # record the position of the next route item under each answer_node_id
         # :key answer_node_id
-        # :value 下一个要处理的路由项位置
+        # :value position of the next route item to process
         self.next_route_chunk_pos_map: dict[str, int] = {}
         for answer_node_id in self.generate_routes.answer_gen_route_chunks:
             self.next_route_chunk_pos_map[answer_node_id] = 0
@@ -87,18 +87,18 @@ class ChatflowStreamProcessor(Generic[GenericState]):
         generator: Generator[Dict, None, None],
         use_end_stream=True
     ) -> Generator[StreamEventChunk, None, None]:
-        # 保存可达的answer节点id
+        # save reachable answer node ids
         reachable_answer_ids = set()
-        # 保存每个节点的输出
+        # save the output of each node
         runtime_state = {}
         has_thinking:bool = False
         thinking_end:bool = False
         for stream_mode,event_data in generator:
             #print(stream_mode,event_data)
             
-            # 代码实现约定：
-            # 1. 子图中不能使用LANGGRAPH_STREAM_MODE_CUSTOM stream_mode
-            # 2. LANGGRAPH_STREAM_MODE_CUSTOM stream_mode的事件数据格式为(stream_mode,event_data)
+            # code implementation conventions:
+            # 1. subgraphs cannot use the LANGGRAPH_STREAM_MODE_CUSTOM stream_mode
+            # 2. the event data format of the LANGGRAPH_STREAM_MODE_CUSTOM stream_mode is (stream_mode,event_data)
             #logger.info("custom_stream_mode_event_data======",stream_mode=stream_mode,event_data=event_data)
             if stream_mode == LANGGRAPH_STREAM_MODE_CUSTOM:
                 stream_mode,event_data = event_data
@@ -127,7 +127,7 @@ class ChatflowStreamProcessor(Generic[GenericState]):
                         node_id
                     ]
                 else:
-                    #这里肯定是llm节点（只有llm节点的stream_mode=StreamMode.MESSAGES）
+                    #this must be an llm node (only llm nodes have stream_mode=StreamMode.MESSAGES)
                     local_runtime_state = {"node_id":node_id,"source_handle":"source"}
                     #global_state["node_runtime_state"] = runtime_state
                     
@@ -186,14 +186,14 @@ class ChatflowStreamProcessor(Generic[GenericState]):
                         chunk_content=content
                     )
                     
-                # agent节点直接输出
+                # agent node outputs directly
                 if node_id == "agent":
                     yield event
                 
                 for answer_node_id in stream_out_answer_node_ids:
                     if answer_node_id not in reachable_answer_ids:
                         reachable_answer_ids.add(answer_node_id)
-                        # 先把TextGenerateRouteChunk执行过去
+                        # first run through the TextGenerateRouteChunk
                         yield from self._try_generate_stream_outputs(answer_node_id, local_runtime_state,use_end_stream)
                      
                     yield event   
@@ -201,7 +201,7 @@ class ChatflowStreamProcessor(Generic[GenericState]):
             elif stream_mode == LANGGRAPH_STREAM_MODE_UPDATES:
                 node_id = next(iter(list(event_data.keys())))
                 
-                # 流程主动中断（比如在节点内部调用langgraph.tgypes.interrput方法等）
+                # the flow is actively interrupted (e.g. calling the langgraph.tgypes.interrput method inside a node, etc.)
                 if node_id == INTERRUPT:
                     interrupt:Interrupt = cast(Interrupt,event_data[INTERRUPT][0])
                     value = interrupt.value
@@ -212,7 +212,7 @@ class ChatflowStreamProcessor(Generic[GenericState]):
                     
                     continue
                 
-                # 处理节点内部控制事件
+                # handle node-internal control events
                 if node_id == WF_NODE_CONTROL_EVENT_NAME:
                     yield NodeRunControlEvent(
                         outputs=event_data[node_id]
@@ -263,7 +263,7 @@ class ChatflowStreamProcessor(Generic[GenericState]):
             elif stream_mode == CUSTOM_STREAM_MODE_PASSTHROUGH:
                 yield ProxyStreamDataChunk(data=event_data)
             elif stream_mode == CUSTOM_STREAM_MODE_DIRECT_OUTPUT:
-                # 节点主动推送的文本片段（AgentBaseNode.stream_text）
+                # text fragment actively pushed by the node (AgentBaseNode.stream_text)
                 direct_node_id = event_data.get("node_id")
                 node = self.workflow.get_node(direct_node_id)
                 yield NodeRunStreamChunkEvent(
@@ -457,38 +457,38 @@ class ChatflowStreamProcessor(Generic[GenericState]):
     
     def _create_task_detail_event(self, node: BaseNode, research_result: dict) -> NodeRunStreamChunkEvent:
         """
-        创建任务详情事件（精简版，方案A）
-        
+        Create task detail event (streamlined version, plan A)
+
         Args:
             node: ResearchTeamNode
-            research_result: 单个任务的研究结果
-        
+            research_result: research result of a single task
+
         Returns:
-            包含任务详情的流事件
+            stream event containing task details
         """
-        # 获取 execution_metadata
+        # get execution_metadata
         exec_metadata = research_result.get("execution_metadata", {})
-        
-        # 构建任务详情数据（精简版）
+
+        # build task detail data (streamlined version)
         task_detail = {
             "event_type": "task_detail",
             "task_id": research_result.get("task_id"),
             "title": research_result.get("title"),
             "status": research_result.get("status"),
-            "findings": research_result.get("findings", ""),  # 完整的研究发现
+            "findings": research_result.get("findings", ""),  # complete research findings
             "analysis": research_result.get("analysis", ""),  # For CoderAgent
-            "formatted_output": research_result.get("formatted_output", ""),  # ⚡ DeerFlow 风格格式化输出（用于实时展示）
-            "references": research_result.get("references", []),  # 详细的参考内容列表（替代了 sources）
+            "formatted_output": research_result.get("formatted_output", ""),  # ⚡ DeerFlow style formatted output (for real-time display)
+            "references": research_result.get("references", []),  # detailed reference content list (replaces sources)
             "intermediate_steps": research_result.get("intermediate_steps", []),
-            "execution_metadata": exec_metadata  # 包含 tools_used
+            "execution_metadata": exec_metadata  # contains tools_used
         }
-        
-        # 如果有代码执行结果（CoderAgent）
+
+        # if there are code execution results (CoderAgent)
         if "code_executed" in research_result:
             task_detail["code_executed"] = research_result.get("code_executed", [])
             task_detail["execution_results"] = research_result.get("execution_results", [])
-        
-        # 构建用户友好的摘要信息
+
+        # build user-friendly summary information
         summary_parts = [f"✅ {task_detail['title']}"]
         if task_detail.get("references"):
             refs_count = len(task_detail["references"])
@@ -496,17 +496,17 @@ class ChatflowStreamProcessor(Generic[GenericState]):
             for ref in task_detail["references"]:
                 source = ref.get("source", "未知来源")
                 refs_by_source[source] = refs_by_source.get(source, 0) + 1
-            
+
             summary_parts.append(f"📚 References: {refs_count} ({', '.join(f'{k}: {v}' for k, v in refs_by_source.items())})")
-        
+
         chunk_content = "\n\n🔍 " + " | ".join(summary_parts) + "\n"
-        
+
         return NodeRunStreamChunkEvent(
             node_id=node.id,
             node_type=node.type,
             node_data=node.to_json(),
             chunk_content=chunk_content,
-            metadata=task_detail  # 将详细数据放在 metadata 中
+            metadata=task_detail  # place detailed data in metadata
         )
 
 

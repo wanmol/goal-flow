@@ -6,18 +6,18 @@ from typing import List, Dict
 import asyncio
 
 class FrameworkLeakChecker:
-    """针对常见框架的内存泄漏检查器"""
-    
+    """Memory leak checker for common frameworks"""
+
     @staticmethod
     def check_fastapi():
-        """检查FastAPI常见内存问题"""
+        """Check common FastAPI memory issues"""
         issues = []
-        
+
         try:
             from fastapi import FastAPI
             import fastapi
-            
-            # 检查路由缓存
+
+            # Check route cache
             app_instances = []
             for obj in gc.get_objects():
                 if isinstance(obj, FastAPI):
@@ -26,7 +26,7 @@ class FrameworkLeakChecker:
             if len(app_instances) > 1:
                 issues.append(f"⚠️  发现多个FastAPI实例 ({len(app_instances)}个)")
             
-            # 检查依赖项缓存
+            # Check dependency cache
             for obj in gc.get_objects():
                 if hasattr(obj, '__class__') and 'dependency' in str(obj.__class__).lower():
                     if hasattr(obj, '_cache') and isinstance(obj._cache, dict):
@@ -41,14 +41,14 @@ class FrameworkLeakChecker:
     
     @staticmethod
     def check_sqlalchemy():
-        """检查SQLAlchemy常见内存问题"""
+        """Check common SQLAlchemy memory issues"""
         issues = []
-        
+
         try:
             from sqlalchemy.orm import Session
             import sqlalchemy
-            
-            # 检查未关闭的Session
+
+            # Check for unclosed Sessions
             open_sessions = []
             for obj in gc.get_objects():
                 if isinstance(obj, Session) and obj.is_active:
@@ -57,12 +57,12 @@ class FrameworkLeakChecker:
             if open_sessions:
                 issues.append(f"⚠️  发现 {len(open_sessions)} 个活跃的SQLAlchemy Session未关闭")
             
-            # 检查查询缓存
+            # Check query cache
             engine_count = 0
             # for obj in gc.get_objects():
             #     if hasattr(obj, 'execute') and hasattr(obj, 'connect'):
             #         engine_count += 1
-            
+
             # if engine_count > 5:
             #     issues.append(f"⚠️  发现 {engine_count} 个数据库引擎，可能过多")
             
@@ -73,25 +73,25 @@ class FrameworkLeakChecker:
     
     @staticmethod
     def check_asyncio():
-        """检查asyncio常见内存问题"""
+        """Check common asyncio memory issues"""
         issues = []
-        
+
         try:
-            # 检查未完成的任务
+            # Check for incomplete tasks
             tasks = [t for t in asyncio.all_tasks() if not t.done()]
             if tasks:
                 issues.append(f"⚠️  发现 {len(tasks)} 个未完成的asyncio任务")
-            
-            # 检查事件循环中的回调
+
+            # Check callbacks in the event loop
             loop = asyncio.get_event_loop()
-            
-            # 检查定时器
+
+            # Check timers
             if hasattr(loop, '_scheduled'):
                 scheduled = len(loop._scheduled)
                 if scheduled > 100:
                     issues.append(f"⚠️  事件循环中有 {scheduled} 个定时任务")
-            
-            # 检查回调
+
+            # Check callbacks
             if hasattr(loop, '_ready'):
                 ready = len(loop._ready)
                 if ready > 1000:
@@ -104,7 +104,7 @@ class FrameworkLeakChecker:
     
     @staticmethod
     def check_redis():
-        """检查Redis连接泄漏"""
+        """Check for Redis connection leaks"""
         issues = []
         
         try:
@@ -126,7 +126,7 @@ class FrameworkLeakChecker:
     
     @staticmethod
     def check_all_frameworks():
-        """检查所有支持的框架"""
+        """Check all supported frameworks"""
         all_issues = []
         
         print("🔍 检查框架相关内存问题...")

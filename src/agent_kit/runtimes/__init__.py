@@ -1,9 +1,9 @@
-"""agent_kit.runtimes：不同 Agent 形态的统一运行时。
+"""agent_kit.runtimes: unified runtimes for different Agent shapes.
 
-提供三种主流 Agent 形态：
-- DeepAgentRuntime：底层 deepagents.create_deep_agent，自带 planning/subagents/memory/HITL
-- CreateAgentRuntime：底层 langchain.agents.create_agent，最小 tool-calling
-- StateGraphRuntime：手动 StateGraph，完全自定义状态机
+Provides three mainstream Agent shapes:
+- DeepAgentRuntime: built on deepagents.create_deep_agent, with built-in planning/subagents/memory/HITL
+- CreateAgentRuntime: built on langchain.agents.create_agent, minimal tool-calling
+- StateGraphRuntime: a manual StateGraph, fully custom state machine
 """
 from agent_kit.runtimes.base import AgentRuntime, AgentResult, classify_error
 from agent_kit.runtimes.deep_agent import DeepAgentRuntime

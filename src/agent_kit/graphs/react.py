@@ -1,11 +1,11 @@
-"""ReactGraphBuilder：``langchain.agents.create_agent`` 的策略包装。
+"""ReactGraphBuilder: a strategy wrapper around ``langchain.agents.create_agent``.
 
-定位：最常用的 tool-calling Agent。覆盖分类 / 提取 / 改写 / 简单 QA 等场景。
+Purpose: the most common tool-calling Agent. Covers classification / extraction / rewriting / simple QA scenarios.
 
-构造参数：
-- ``response_format``：可选结构化响应（与 ``create_agent`` 的 ``response_format`` 同义）
-- ``checkpointer``：可选自定义 checkpointer；默认 ``InMemorySaver``
-- ``**extra``：透传给 ``create_agent``
+Constructor arguments:
+- ``response_format``: optional structured response (synonymous with ``create_agent``'s ``response_format``)
+- ``checkpointer``: optional custom checkpointer; defaults to ``InMemorySaver``
+- ``**extra``: passed through to ``create_agent``
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from langchain.agents.middleware import AgentMiddleware
 
 
 class ReactGraphBuilder:
-    """基于 ``langchain.agents.create_agent`` 的 GraphBuilder。"""
+    """A GraphBuilder based on ``langchain.agents.create_agent``."""
 
     def __init__(
         self,
@@ -48,7 +48,7 @@ class ReactGraphBuilder:
             "middleware": list(middleware),
             "checkpointer": self._checkpointer or InMemorySaver(),
         }
-        # response_format / output_schema：构造参数优先；其次 Agent 传入
+        # response_format / output_schema: constructor argument takes priority; then what the Agent passes in
         rf = self._response_format or output_schema
         if rf is not None:
             kwargs["response_format"] = rf

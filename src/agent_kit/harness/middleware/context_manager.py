@@ -1,10 +1,10 @@
-"""Agent 上下文管理：Protocol + 默认会话历史实现。
+"""Agent context management: Protocol + default conversation-history implementation.
 
-``ContextManager`` 负责：
-- ``assemble``：注入历史/上下文（``before_agent``）
-- ``save_turn``：持久化本轮 user query + 最终 assistant 回复（``after_agent``，不含 agent loop 中间消息）
+``ContextManager`` is responsible for:
+- ``assemble``: inject history/context (``before_agent``)
+- ``save_turn``: persist this turn's user query + final assistant reply (``after_agent``, excluding intermediate agent-loop messages)
 
-业务可注入自定义实现；``ContextMiddleware`` 负责与 LangGraph state 衔接。
+Business code may inject a custom implementation; ``ContextMiddleware`` bridges it with LangGraph state.
 """
 from __future__ import annotations
 
@@ -40,14 +40,14 @@ ContextSaveTurnFn = Callable[
 
 @runtime_checkable
 class ContextManager(Protocol):
-    """上下文管理插件协议。"""
+    """Context management plugin protocol."""
 
     def assemble(
         self,
         state: "ContextAgentState",
         runtime: "Runtime[ContextT]",
     ) -> list[Any] | None:
-        """组装要注入的历史/上下文消息（不含本轮 user query）。"""
+        """Assemble the history/context messages to inject (excluding this turn's user query)."""
 
     def save_turn(
         self,
@@ -57,11 +57,11 @@ class ContextManager(Protocol):
         query: str,
         answer: str,
     ) -> None:
-        """持久化本轮问答（仅最终 user query + assistant 回复）。"""
+        """Persist this turn's Q&A (only the final user query + assistant reply)."""
 
 
 class CallableContextManager:
-    """将 assemble / save 函数包装为 ``ContextManager``。"""
+    """Wrap assemble / save functions into a ``ContextManager``."""
 
     def __init__(
         self,
@@ -91,7 +91,7 @@ class CallableContextManager:
 
 
 class _ExtractorAdapter:
-    """将旧版仅 ``extract`` 的抽取器适配为 ``ContextManager``。"""
+    """Adapt a legacy extractor that only has ``extract`` into a ``ContextManager``."""
 
     def __init__(self, extractor: Any):
         self._extractor = extractor
@@ -119,7 +119,7 @@ def history_dicts_to_messages(
     *,
     max_size: int = DEFAULT_HISTORY_WINDOW_SIZE,
 ) -> list[Any]:
-    """将 MessageService 格式的历史记录转为 LangChain 消息（user/assistant 严格交替）。"""
+    """Convert MessageService-format history records into LangChain messages (strict user/assistant alternation)."""
     if not history:
         return []
     
@@ -154,7 +154,7 @@ def history_dicts_to_messages(
 
 
 def extract_turn_query(messages: list[Any]) -> str:
-    """提取本轮 user query（agent loop 中通常不再追加 HumanMessage）。"""
+    """Extract this turn's user query (the agent loop usually no longer appends a HumanMessage)."""
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
             text = extract_chunk_text(msg.content).strip()
@@ -164,7 +164,7 @@ def extract_turn_query(messages: list[Any]) -> str:
 
 
 def extract_turn_answer(messages: list[Any]) -> str:
-    """提取本轮最终 assistant 回复，跳过 tool call / tool result 等中间消息。"""
+    """Extract this turn's final assistant reply, skipping intermediate messages like tool call / tool result."""
     for msg in reversed(messages):
         if isinstance(msg, ToolMessage):
             continue
@@ -191,7 +191,7 @@ def _context_field(runtime: "Runtime[Any]", name: str, default: str = "") -> str
 
 
 class ConversationHistoryContextManager:
-    """默认实现：MessageService 拉历史；可选 MessageService 落库本轮问答。"""
+    """Default implementation: pull history from MessageService; optionally persist this turn's Q&A to MessageService."""
 
     def __init__(self, *, default_history_window_size: int = DEFAULT_HISTORY_WINDOW_SIZE):
         self.default_history_window_size = default_history_window_size
@@ -233,7 +233,7 @@ class ConversationHistoryContextManager:
             return None
 
         history = list(history)[::-1]
-        # TODO: 从 runtime.context 中获取 history_window_size
+        # TODO: get history_window_size from runtime.context
         max_size = self.default_history_window_size
         messages = history_dicts_to_messages(history, max_size=max_size)
         return messages or None
@@ -276,7 +276,7 @@ def default_context_manager(
     *,
     default_history_window_size: int = DEFAULT_HISTORY_WINDOW_SIZE,
 ) -> ConversationHistoryContextManager:
-    """返回默认会话历史上下文管理器。"""
+    """Return the default conversation-history context manager."""
     return ConversationHistoryContextManager(
         default_history_window_size=default_history_window_size
     )
@@ -287,7 +287,7 @@ def resolve_context_manager(
     *,
     default_history_window_size: int = DEFAULT_HISTORY_WINDOW_SIZE,
 ) -> ContextManager:
-    """解析注入的管理器：``None`` → 默认；callable → 包装；旧 ``ContextExtractor`` → 适配。"""
+    """Resolve the injected manager: ``None`` → default; callable → wrapped; legacy ``ContextExtractor`` → adapted."""
     if manager is None:
         return default_context_manager(
             default_history_window_size=default_history_window_size
@@ -306,7 +306,7 @@ def should_save_turn(
     *,
     default: bool = False,
 ) -> bool:
-    """是否保存本轮问答：runtime.context 优先，否则用 middleware 构造参数。"""
+    """Whether to save this turn's Q&A: runtime.context takes priority, otherwise use the middleware's constructor argument."""
     ctx = runtime.context
     if ctx is None:
         return default

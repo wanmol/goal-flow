@@ -43,15 +43,15 @@ class IfElseNode(BaseNode):
         Evaluate conditions and determine the execution path.
         """
 
-        # 准备输入数据记录
+        # Prepare the input data record
         node_inputs: dict[str, list] = {"conditions": []}
-        # 准备处理过程数据记录
+        # Prepare the processing data record
         process_data: dict[str, list] = {"condition_results": []}
 
-        input_conditions = []  # 存储原始条件语句
-        final_result = False  # 最终评估结果
-        selected_case_id = None  # 匹配的条件分支ID
-        condition_processor = ConditionProcessor()  # 条件处理器
+        input_conditions = []  # Store the original condition statements
+        final_result = False  # Final evaluation result
+        selected_case_id = None  # ID of the matched condition branch
+        condition_processor = ConditionProcessor()  # Condition processor
 
         variable_pool = self._merge_variables(state)
 
@@ -76,7 +76,7 @@ class IfElseNode(BaseNode):
             if final_result:
                 selected_case_id = case.case_id  # Capture the ID of the passing case
                 break
-        # print("选择分支", selected_case_id)
+        # print("selected branch", selected_case_id)
         next_ids = self.source_handle_target_map.get(selected_case_id, [])
         if next_ids == []:
             next_ids = ['false']
@@ -92,7 +92,7 @@ class IfElseNode(BaseNode):
 
     def _merge_variables(self, state: GenericState) -> Dict[str, Any]:
         """
-        使用高效的字典合并方式构建变量池
+        Build the variable pool using an efficient dict merge
         """
         variable_pool = {
             "sys_query": state.get("sys_query"),
@@ -104,7 +104,7 @@ class IfElseNode(BaseNode):
             "sys_workflow_id": state.get("sys_workflow_id"),
             "sys_workflow_run_id": state.get("sys_workflow_run_id"),
         }
-        # 使用 dict.update() 比字典解包更高效
+        # Using dict.update() is more efficient than dict unpacking
         variable_pool.update(state.get("input_variables", {}))
         variable_pool.update(state.get("output_variables", {}))
         variable_pool.update(state.get("conversation_variables", {}))

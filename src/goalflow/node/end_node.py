@@ -36,5 +36,5 @@ class EndNode(BaseNode):
             value = variable if variable is not None else None
             outputs[variable_selector.variable] = value
 
-        # 设置state中的流程结束时输出的变量outputs
+        # Set the outputs variable that is emitted when the workflow ends in the state
         return {"outputs":outputs}

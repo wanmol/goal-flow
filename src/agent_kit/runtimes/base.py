@@ -1,20 +1,20 @@
 """
-AgentRuntime：跨 Agent 形态共享的统一运行时基类。
+AgentRuntime: unified runtime base class shared across Agent forms.
 
-设计意图：
-- 所有 Agent 形态（DeepAgent / ReAct / 自建 StateGraph 等）继承这个基类
-- 共享：钩子骨架、make_tool、run() 状态机、错误归类、metric/stream callback 注入
-- 各 Runtime 子类只需实现两个底层钩子：
-  - ``_build_graph()``：构造具体形态的 LangGraph 实例
-  - ``_execute_graph(...)``：跑一次 graph + 收 result
+Design intent:
+- All Agent forms (DeepAgent / ReAct / custom StateGraph, etc.) inherit this base class
+- Shared: hook skeleton, make_tool, run() state machine, error classification, metric/stream callback injection
+- Each Runtime subclass only needs to implement two low-level hooks:
+  - ``_build_graph()``: construct the concrete LangGraph instance for this form
+  - ``_execute_graph(...)``: run the graph once + collect the result
 
-向上对接 Harness（Day3-7）：HarnessBacked mixin 通过重写 _get_llm / build_system_prompt /
-build_tools 把任意 AgentRuntime 接到 Model Router / Prompt Registry / Skill Adapter。
+Upward integration with Harness (Day3-7): the HarnessBacked mixin overrides _get_llm / build_system_prompt /
+build_tools to connect any AgentRuntime to the Model Router / Prompt Registry / Skill Adapter.
 
-不依赖：
-- 任何 workflow 引擎类型（BaseNode 等）
-- 任何具体仓库的 metric / LLM 工厂
-- Langfuse（可选，由 Runtime 子类按需 import）
+Does not depend on:
+- Any workflow engine types (BaseNode, etc.)
+- Any specific repo's metric / LLM factory
+- Langfuse (optional, imported on demand by Runtime subclasses)
 """
 from __future__ import annotations
 
@@ -34,8 +34,8 @@ from agent_kit.runtimes.external_errors import reraise_if_critical
 logger = logging.getLogger(__name__)
 
 
-# P2（ADR-002）：以下钩子已被对应 LangChain Middleware 覆盖；override 时发 DeprecationWarning。
-# 将在 P3（下一个 minor）从基类删除。
+# P2 (ADR-002): the hooks below are now covered by their corresponding LangChain Middleware; overriding them emits a DeprecationWarning.
+# They will be removed from the base class in P3 (next minor).
 _DEPRECATED_HOOK_REPLACEMENTS: dict[str, str] = {
     "before_call": "EntryGuardMiddleware",
     "should_run_agent": "ModelSkipMiddleware",
@@ -44,38 +44,39 @@ _DEPRECATED_HOOK_REPLACEMENTS: dict[str, str] = {
 
 
 # ---------------------------------------------------------------------------
-# Result 基类
+# Result base class
 # ---------------------------------------------------------------------------
 
 class AgentResult(BaseModel):
-    """所有 Agent 运行结果的统一基类。
+    """Unified base class for all Agent run results.
 
-    业务子类继承并加业务字段。Runtime-specific 附加信息（如 DeepAgent 的 todos）
-    塞 ``extra`` dict，避免子类 isinstance 区分 Runtime 类型。
+    Business subclasses inherit and add business fields. Runtime-specific extra info
+    (such as DeepAgent's todos) goes into the ``extra`` dict, avoiding subclasses
+    using isinstance to distinguish Runtime types.
     """
 
     reply: str = ""
-    """Agent 最终生成给用户的文本回复。"""
+    """The final text reply the Agent produces for the user."""
 
     failed: bool = False
-    """Agent 整体异常标记。"""
+    """Overall Agent failure flag."""
 
     raw_messages: list = Field(default_factory=list)
-    """Agent 运行后 graph state 里的完整 messages 列表。"""
+    """The full messages list from the graph state after the Agent runs."""
 
     extra: dict = Field(default_factory=dict)
-    """Runtime-specific 数据（如 ``extra['todos']`` for DeepAgent）。"""
+    """Runtime-specific data (such as ``extra['todos']`` for DeepAgent)."""
 
 
 ResultT = TypeVar("ResultT", bound=AgentResult)
 
 
 # ---------------------------------------------------------------------------
-# 错误归类
+# Error classification
 # ---------------------------------------------------------------------------
 
 def classify_error(error_text: str) -> str:
-    """把 LLM/Agent 异常归到 metric label：compliance / tool_json / network / other。"""
+    """Classify an LLM/Agent exception into a metric label: compliance / tool_json / network / other."""
     if not error_text:
         return "other"
     t = error_text.lower()
@@ -94,7 +95,7 @@ def classify_error(error_text: str) -> str:
     return "other"
 
 
-# Callback 类型别名
+# Callback type aliases
 StreamCallback = Callable[[str], None]
 MetricEmitter = Callable[..., None]
 
@@ -102,8 +103,8 @@ MetricEmitter = Callable[..., None]
 def extract_chunk_text(content: Any) -> str:
     """Normalize AIMessageChunk.content to a plain string for streaming.
 
-    LangChain 不同 provider 返回的 content 形态各异（str / list of dict / Content blocks）。
-    本函数把所有形态归一为 str，供 _execute_graph 流式 token 推送使用。
+    Different LangChain providers return content in varying shapes (str / list of dict / Content blocks).
+    This function normalizes all shapes to str, for use by _execute_graph's streaming token push.
     """
     if content is None:
         return ""
@@ -142,11 +143,12 @@ def _annotate_langfuse_tool_span(
     agent_namespace: str,
     task_type: str,
 ) -> None:
-    """在当前 Langfuse observation 上打 metadata 标签。
+    """Attach metadata labels to the current Langfuse observation.
 
-    每次 make_tool 装饰的工具被调用时由 _wrapped 触发。LangChain CallbackHandler
-    已经在 tool 调用外层开了 observation，本函数只追加 metadata 不另建 span。
-    Langfuse 未启用 / 包未安装 / 调用失败 → 静默 noop。
+    Triggered by _wrapped each time a make_tool-decorated tool is called. The LangChain
+    CallbackHandler has already opened an observation around the tool call; this function
+    only appends metadata and does not create another span.
+    Langfuse disabled / package not installed / call failed -> silent noop.
     """
     try:
         from agent_kit.harness import HARNESS_OBS
@@ -164,83 +166,84 @@ def _annotate_langfuse_tool_span(
             }
         )
     except Exception:
-        # 静默：观测点不能拖垮 tool 调用
+        # Silent: observability must not drag down the tool call
         pass
 
 
 # ---------------------------------------------------------------------------
-# AgentRuntime：跨形态共享基类
+# AgentRuntime: base class shared across forms
 # ---------------------------------------------------------------------------
 
 class AgentRuntime(ABC, Generic[ResultT]):
-    """跨 Agent 形态共享的通用运行时基类。
+    """Common runtime base class shared across Agent forms.
 
-    子类（DeepAgentRuntime / ReactAgentRuntime / StateGraphRuntime / ...）
-    实现 ``_build_graph()`` + ``_execute_graph(...)`` 即可拥有完整的：
-    - 12 个钩子（5 必须 + 3 生命周期 + 4 可选）
-    - make_tool 闭包工具工厂
-    - run() 状态机入口
-    - 错误归类 + metric/stream callback 注入
+    Subclasses (DeepAgentRuntime / ReactAgentRuntime / StateGraphRuntime / ...)
+    only need to implement ``_build_graph()`` + ``_execute_graph(...)`` to gain a complete:
+    - 12 hooks (5 required + 3 lifecycle + 4 optional)
+    - make_tool closure-based tool factory
+    - run() state machine entry point
+    - error classification + metric/stream callback injection
 
-    跨形态独有钩子（subagents / memory / interrupt_on / response_format）由
-    DeepAgentRuntime 单独实现，不污染基类。
+    Form-specific hooks (subagents / memory / interrupt_on / response_format) are
+    implemented solely by DeepAgentRuntime, keeping the base class clean.
 
-    Run() 执行流（关键决策点）::
+    Run() execution flow (key decision points)::
 
          run(state, query)
             │
             ▼
         ┌───────────────┐
-        │  before_call  │── 返回 Command ────────► 直接 return（**跳过 result 构造、
-        │   (state)     │                          agent 调用、finalize、metric**）
+        │  before_call  │── returns Command ────────► return directly (**skips result construction,
+        │   (state)     │                          agent call, finalize, metric**)
         └───────┬───────┘
                 │ None
                 ▼
-        构造 result + 进入 try
+        construct result + enter try
                 │
                 ▼
         ┌────────────────────┐
-        │ should_run_agent   │── False ──► 跳过 _execute_graph，**仍走 finalize**
+        │ should_run_agent   │── False ──► skip _execute_graph, **still run finalize**
         │  (state, query)    │
         └────────┬───────────┘
                  │ True
                  ▼
         build_system_prompt → augment_skills → build_user_content → _execute_graph
-                 │ (异常路径)
+                 │ (exception path)
                  ▼
-              on_failure → result.failed = True（transport 失败则 **直接 raise**）
+              on_failure → result.failed = True (on transport failure, **raise directly**)
                  │
                  ▼
-              after_agent (finally 内调，无论成功失败)
+              after_agent (called in finally, whether success or failure)
                  │
                  ▼
               finalize(state, result, query) → return Command
 
-    决策树（"我该用哪个钩子跳过 agent？"）::
+    Decision tree ("which hook should I use to skip the agent?")::
 
-        既要跳过 agent，又要跳过 finalize（直接返回固定 Command）？
-            → before_call 返回 Command
-            典型：状态预检失败、节点要短路到下一节点
+        Want to skip both the agent AND finalize (return a fixed Command directly)?
+            → before_call returns Command
+            Typical: state precheck failure, node needs to short-circuit to the next node
 
-        只跳过 agent 调用，但仍要走 finalize 输出结果？
-            → should_run_agent 返回 False
-            典型：低信号 ack（"嗯""好"）省 LLM 成本，但仍要走 finalize 推流回复
+        Only skip the agent call, but still run finalize to output a result?
+            → should_run_agent returns False
+            Typical: low-signal ack ("嗯""好") saves LLM cost, but still runs finalize to stream a reply
 
-        要在 result 构造完之后再决定？不可能 —— before_call 在 result 之前调，
-        should_run_agent 在 result 之后调。请按这个顺序判断。
+        Want to decide after result is constructed? Not possible -- before_call is called before result,
+        should_run_agent is called after result. Follow this order when deciding.
     """
 
-    # ───── 子类可覆盖的配置项 ──────────────────────────
+    # ───── Config options subclasses may override ──────────────────────────
     metric_namespace: str = "agent"
     thread_id_prefix: str = "agent"
     fallback_reply: str = "请继续提供您的需求信息，帮助我们为您精准匹配。"
     cache_graph: bool = True
-    """是否缓存 _build_graph() 的产物。
+    """Whether to cache the product of _build_graph().
 
-    - True (默认)：第一次 run 后缓存 graph；后续 run 直接复用。
-      ``build_tools()`` / ``collect_skill_tools()`` 只在第一轮被调用。
-    - False：每次 run 都重建 graph。适合议价节点等需要按 state 决定 graph 拓扑、
-      或需要每轮重新 collect 动态 tools 的场景。代价是每轮多一次 _build_graph 开销。
+    - True (default): cache the graph after the first run; subsequent runs reuse it directly.
+      ``build_tools()`` / ``collect_skill_tools()`` are only called on the first round.
+    - False: rebuild the graph on every run. Suitable for scenarios like bargaining nodes that need
+      to decide graph topology based on state, or that need to re-collect dynamic tools each round.
+      The cost is an extra _build_graph call each round.
     """
 
     def __init__(self, *, llm: Optional[Any] = None) -> None:
@@ -249,21 +252,23 @@ class AgentRuntime(ABC, Generic[ResultT]):
         self._current_result_var: contextvars.ContextVar = contextvars.ContextVar(
             f"_{self.metric_namespace}_result_{id(self)}"
         )
-        # request_scope：每次 run() 的 turn-internal 暂存区，由 ContextVar 隔离，
-        # 多实例 / 并发跑同实例都不会串。业务在 before_call/after_agent 里读写。
+        # request_scope: a turn-internal scratch area for each run(), isolated by ContextVar,
+        # so multiple instances / concurrent runs of the same instance never cross-contaminate.
+        # Business code reads/writes it in before_call/after_agent.
         self._request_scope_var: contextvars.ContextVar = contextvars.ContextVar(
             f"_{self.metric_namespace}_request_scope_{id(self)}"
         )
-        # stream_callback 也走 ContextVar：原本是普通实例属性，并发跑同实例会串
-        # （线程 A 的 callback 被线程 B 覆盖）。run() 入口 set / 出口 reset。
+        # stream_callback also uses a ContextVar: it was originally a plain instance attribute,
+        # and concurrent runs of the same instance would cross-contaminate
+        # (thread A's callback overwritten by thread B). set at run() entry / reset at exit.
         self._stream_callback_var: contextvars.ContextVar = contextvars.ContextVar(
             f"_{self.metric_namespace}_stream_cb_{id(self)}"
         )
 
-    # P2（ADR-002）：检测子类是否 override 已废弃的钩子，发 DeprecationWarning。
-    # __init_subclass__ 只在 *直接定义* 的子类里检查（cls.__dict__），不会因继承链触发。
-    # 三个 Runtime 形态子类（DeepAgentRuntime / CreateAgentRuntime / StateGraphRuntime）
-    # 本身不 override 这些钩子，所以不会触发；业务子类 override 时才会触发。
+    # P2 (ADR-002): detect whether subclasses override deprecated hooks and emit a DeprecationWarning.
+    # __init_subclass__ only checks in the *directly defined* subclass (cls.__dict__), not triggered through the inheritance chain.
+    # The three Runtime-form subclasses (DeepAgentRuntime / CreateAgentRuntime / StateGraphRuntime)
+    # do not override these hooks themselves, so they won't trigger; only business subclasses that override will.
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         for hook_name, replacement in _DEPRECATED_HOOK_REPLACEMENTS.items():
@@ -281,7 +286,7 @@ class AgentRuntime(ABC, Generic[ResultT]):
                 stacklevel=2,
             )
 
-    # ───── 5 个必须实现的钩子 ──────────────────────────
+    # ───── 5 required hooks to implement ──────────────────────────
 
     @property
     @abstractmethod
@@ -295,110 +300,110 @@ class AgentRuntime(ABC, Generic[ResultT]):
     @abstractmethod
     def finalize(self, state: Any, result: ResultT, user_query: str) -> Command: ...
 
-    # ───── 3 个生命周期钩子 ───────────────────────────
+    # ───── 3 lifecycle hooks ───────────────────────────
 
     def before_call(self, state: Any) -> Optional[Command]:
-        """run() 入口最先调，在 result 构造之前。
+        """Called first at run() entry, before result construction.
 
         .. deprecated::
-            P2（ADR-002）起 override 本钩子会发 ``DeprecationWarning``，下一个 minor
-            版本移除。改用 ``EntryGuardMiddleware`` 通过 ``middleware_extra()`` 注入。
-            仍需要 ``Command(goto="some_node")`` 跳转自定义节点的场景才必须用本钩子
-            （middleware 仅支持 ``jump_to=["end"]``）。
+            As of P2 (ADR-002), overriding this hook emits a ``DeprecationWarning``, and it will be removed
+            in the next minor version. Use ``EntryGuardMiddleware`` injected via ``middleware_extra()`` instead.
+            This hook is only required when you still need ``Command(goto="some_node")`` to jump to a custom node
+            (middleware only supports ``jump_to=["end"]``).
 
-        返回 ``Command`` 则 **完全短路** —— 跳过 result、agent、finalize、metric，
-        直接返回该 Command。
+        Returning a ``Command`` **fully short-circuits** -- skips result, agent, finalize, metric,
+        and returns that Command directly.
 
-        返回 ``None`` 则继续后续流程（result → should_run_agent → execute → finalize）。
+        Returning ``None`` continues the subsequent flow (result → should_run_agent → execute → finalize).
 
-        典型用途：
-        - 状态预检失败需要直接返回固定回复
-        - 节点要短路跳到下一节点（``Command(goto=...)``）
-        - 类目阶段尚未确认，没必要构造 result + 跑 agent
+        Typical uses:
+        - State precheck failure needs to return a fixed reply directly
+        - Node needs to short-circuit to the next node (``Command(goto=...)``)
+        - Category stage not yet confirmed, no need to construct result + run agent
 
-        对比 ``should_run_agent``：
-        - before_call 跳过 finalize；should_run_agent 仍走 finalize
-        - before_call 在 result 之前；should_run_agent 在 result 之后
+        Compared with ``should_run_agent``:
+        - before_call skips finalize; should_run_agent still runs finalize
+        - before_call is before result; should_run_agent is after result
         """
         return None
 
     def should_run_agent(self, state: Any, user_query: str) -> bool:
-        """决定本轮是否真正调用 graph。默认 True。
+        """Decide whether to actually call the graph this round. Default True.
 
         .. deprecated::
-            P2（ADR-002）起 override 本钩子会发 ``DeprecationWarning``，下一个 minor
-            版本移除。改用 ``ModelSkipMiddleware`` 通过 ``middleware_extra()`` 注入。
+            As of P2 (ADR-002), overriding this hook emits a ``DeprecationWarning``, and it will be removed
+            in the next minor version. Use ``ModelSkipMiddleware`` injected via ``middleware_extra()`` instead.
 
-        返回 False 时 **只跳过 _execute_graph**，仍然会走 ``after_agent`` + ``finalize``。
-        ``result`` 已构造但 ``result.reply`` 为空 / ``raw_messages`` 为空。
+        When it returns False, **only _execute_graph is skipped**; ``after_agent`` + ``finalize`` still run.
+        ``result`` is already constructed but ``result.reply`` is empty / ``raw_messages`` is empty.
 
-        典型用途：
-        - 低信号 ack（"嗯""好""ok"）省 LLM 成本，但仍要走 finalize 推流回复
-        - 缓存命中无需重新跑 agent
-        - 通过 ``request_scope`` 已经收集到全部所需信息，跳过 agent 直接出结果
+        Typical uses:
+        - Low-signal ack ("嗯""好""ok") saves LLM cost, but still runs finalize to stream a reply
+        - Cache hit, no need to re-run the agent
+        - All needed info already collected via ``request_scope``, skip the agent and output the result directly
 
-        对比 ``before_call``：
-        - should_run_agent 仍走 finalize；before_call 返回 Command 完全短路
-        - should_run_agent 可读已构造的 result；before_call 时 result 还不存在
+        Compared with ``before_call``:
+        - should_run_agent still runs finalize; before_call returning a Command fully short-circuits
+        - should_run_agent can read the constructed result; at before_call time result does not yet exist
         """
         return True
 
     def after_agent(self, state: Any, result: ResultT, user_query: str) -> None:
-        """Agent 跑完后、finalize 前的钩子。result 可读写。"""
+        """Hook after the Agent runs, before finalize. result is readable/writable."""
         return None
 
-    # ───── 4 个可选钩子 ───────────────────────────────
+    # ───── 4 optional hooks ───────────────────────────────
 
     def context_extra_fields_schema(self) -> dict:
-        """声明 dynamic_prompt context 除 system_prompt 之外的字段。"""
+        """Declare fields for the dynamic_prompt context beyond system_prompt."""
         return {}
 
     def context_extra_fields(self, state: Any) -> dict:
-        """本轮 invoke 时为额外 context 字段提供值。"""
+        """Provide values for the extra context fields at invoke time this round."""
         return {}
 
     def middleware_extra(self) -> list:
-        """业务额外 LangChain middleware。"""
+        """Extra business LangChain middleware."""
         logger.info(f"base_middleware_extra")
         return []
 
     def on_failure(self, state: Any, user_query: str, error: Exception) -> str:
-        """Agent 异常时的兜底回复。默认返回固定话术。
+        """Fallback reply when the Agent errors. Returns a fixed message by default.
 
         .. deprecated::
-            P2（ADR-002）起 override 本钩子会发 ``DeprecationWarning``，下一个 minor
-            版本移除。改用 ``FallbackReplyMiddleware`` 通过 ``middleware_extra()`` 注入；
-            自定义按异常类型分支用 ``on_error=lambda e: ...`` 参数。
+            As of P2 (ADR-002), overriding this hook emits a ``DeprecationWarning``, and it will be removed
+            in the next minor version. Use ``FallbackReplyMiddleware`` injected via ``middleware_extra()``;
+            for custom branching by exception type use the ``on_error=lambda e: ...`` parameter.
         """
         return self.fallback_reply
 
-    # ───── Skills 钩子（PR2 加入）─────────────────────
-    # 默认 skills_dir() 返回 None → 完全不启用 skill 系统，行为与 PR1 之前一致
+    # ───── Skills hooks (added in PR2) ─────────────────────
+    # By default skills_dir() returns None → skill system fully disabled, behavior identical to pre-PR1
 
     def skills_dir(self) -> Optional[str]:
-        """返回本 Agent 的 skills 根目录。返回 None（默认）= 不启用 skill 系统。
+        """Return this Agent's skills root directory. Returning None (default) = skill system disabled.
 
-        启用方式：在子类里 override 返回路径，例如 ``return "./skills"``。
+        To enable: override in a subclass to return a path, e.g. ``return "./skills"``.
         """
         return None
 
     def skill_match_top_k(self) -> int:
-        """skill 匹配的 top_k；默认 3。"""
+        """top_k for skill matching; default 3."""
         return 3
 
     def skill_match_threshold(self) -> float:
-        """skill 匹配的 confidence 阈值；默认 0.3。"""
+        """Confidence threshold for skill matching; default 0.3."""
         return 0.3
 
     def build_skill_orchestrator(self):
-        """钩子：构造 SkillOrchestrator；默认基于 skills_dir() 自动创建并缓存。
+        """Hook: construct the SkillOrchestrator; by default auto-created and cached based on skills_dir().
 
-        业务可重写以注入自定义 matcher / adapter。返回 None 等价于不启用。
+        Business code can override to inject a custom matcher / adapter. Returning None is equivalent to disabled.
         """
         skills_dir = self.skills_dir()
         if not skills_dir:
             return None
-        # 懒加载缓存
+        # Lazy-load cache
         cached = getattr(self, "_skill_orchestrator", None)
         if cached is not None:
             return cached
@@ -409,27 +414,27 @@ class AgentRuntime(ABC, Generic[ResultT]):
         return orch
 
     def collect_skill_tools(self) -> list:
-        """PR3：枚举 skills_dir 下所有 ``executable`` / ``hybrid`` 的 skill，
-        全部 materialize 成 LangChain Tools。
+        """PR3: enumerate all ``executable`` / ``hybrid`` skills under skills_dir,
+        and materialize them all into LangChain Tools.
 
-        在 ``_build_graph()`` 阶段一次性收集（graph 缓存只构建一次）。
-        匹配（Matcher）只在每次 query 时影响 system prompt augmentation，
-        告诉 LLM "现在该用哪个 tool"。这是 Anthropic Agent Skills 的标准模式。
+        Collected once during the ``_build_graph()`` stage (the graph cache is built only once).
+        Matching (Matcher) only affects system prompt augmentation at each query,
+        telling the LLM "which tool to use now". This is the standard Anthropic Agent Skills pattern.
 
-        失败的 skill 静默 skip + warn log，不影响主流程。
+        Failed skills are silently skipped + warn logged, without affecting the main flow.
         """
         orch = self.build_skill_orchestrator()
         if orch is None:
             return []
         try:
-            # 全量 manifest（已 discover）→ 加载 body → 编译可执行 tool
+            # Full manifest (already discovered) → load body → compile executable tool
             all_manifests = orch.registry.all(enabled_only=True)
             executable = [
                 m for m in all_manifests if m.mode in ("executable", "hybrid")
             ]
             if not executable:
                 return []
-            # 加载 body（in_process adapter 不需要 body，但保持一致）
+            # Load body (in_process adapter doesn't need body, but kept consistent)
             for m in executable:
                 if m.body is None:
                     orch.loader.load_body(m.skill_id)
@@ -441,18 +446,18 @@ class AgentRuntime(ABC, Generic[ResultT]):
             )
             return []
 
-    # ───── make_tool：闭包绑定 result 的工具工厂 ────────
+    # ───── make_tool: tool factory that closure-binds result ────────
 
     def make_tool(self, fn):
-        """把 fn(result, *args, **kwargs) -> str 转成 LangChain @tool。
+        """Convert fn(result, *args, **kwargs) -> str into a LangChain @tool.
 
-        result 由本实例的 ContextVar 自动注入。
-        闭包绑定本 instance 的 ContextVar，支持同进程多实例隔离。
+        result is automatically injected by this instance's ContextVar.
+        The closure binds this instance's ContextVar, supporting multi-instance isolation within the same process.
 
-        Langfuse 观测：tool 调用作为 TOOL observation 自动出现在 trace 里
-        （由 LangChain CallbackHandler 创建）；agent_namespace / task_type
-        通过 HARNESS_OBS.span() 的 propagate_attributes 自动套用到所有
-        child observation，无需在每个 tool 调用里手动埋点。
+        Langfuse observability: the tool call automatically appears as a TOOL observation in the trace
+        (created by the LangChain CallbackHandler); agent_namespace / task_type
+        are automatically applied to all child observations via HARNESS_OBS.span()'s propagate_attributes,
+        with no need to manually instrument each tool call.
         """
         from langchain_core.tools import tool
 
@@ -498,21 +503,21 @@ class AgentRuntime(ABC, Generic[ResultT]):
 
     @property
     def request_scope(self) -> dict:
-        """本轮 run() 的暂存区。由 ContextVar 隔离 → 多实例 / 并发跑同实例都不串。
+        """The scratch area for this run(). Isolated by ContextVar → multiple instances / concurrent runs of the same instance never cross-contaminate.
 
-        典型用法：业务在 ``before_call`` 里写 ``self.request_scope["phase"] = ...``，
-        在 ``after_agent`` / ``finalize`` 里读。
-        run() 会在入口自动 set({})、出口 reset。
+        Typical usage: business code writes ``self.request_scope["phase"] = ...`` in ``before_call``,
+        and reads it in ``after_agent`` / ``finalize``.
+        run() automatically set({}) at entry, reset at exit.
         """
         try:
             return self._request_scope_var.get()
         except LookupError:
-            # 调用者在 run() 之外访问；返回空 dict 避免 AttributeError
+            # Caller accessed it outside run(); return an empty dict to avoid AttributeError
             return {}
 
     @property
     def _stream_callback(self) -> StreamCallback:
-        """当前 run() 上下文的 stream callback。ContextVar 隔离，并发安全。"""
+        """The stream callback for the current run() context. ContextVar-isolated, concurrency-safe."""
         try:
             return self._stream_callback_var.get()
         except LookupError:
@@ -520,25 +525,25 @@ class AgentRuntime(ABC, Generic[ResultT]):
 
     @_stream_callback.setter
     def _stream_callback(self, cb: StreamCallback) -> None:
-        """保留老接口的写语义；内部 set 到 ContextVar。注意：仅在 run() 上下文内有效。"""
+        """Preserve the old interface's write semantics; internally sets to the ContextVar. Note: only valid within the run() context."""
         self._stream_callback_var.set(cb)
 
     def on_stream_token(self, token: str) -> Optional[str]:
-        """流式 token 钩子。``_execute_graph`` 在调 ``_stream_callback`` 前先调一遍本钩子。
+        """Streaming token hook. ``_execute_graph`` calls this hook once before calling ``_stream_callback``.
 
-        - 返回 ``None`` 或原 token：保持默认行为（推给 stream_callback）
-        - 返回 ``""``：吞掉本 token（不推给下游）
-        - 返回新字符串：替换 token
+        - Return ``None`` or the original token: keep default behavior (push to stream_callback)
+        - Return ``""``: swallow this token (do not push downstream)
+        - Return a new string: replace the token
 
-        典型用法：业务子类需要缓冲全部 agent token 做事后拼接时，
-        在这里 append 到 ``self.request_scope["tokens"]``。
+        Typical usage: when a business subclass needs to buffer all agent tokens for later concatenation,
+        append here to ``self.request_scope["tokens"]``.
         """
         return token
 
     def _dispatch_stream_token(self, token: str) -> None:
-        """Runtime 内部使用：on_stream_token 钩子 + stream_callback 推送。
+        """Runtime-internal use: on_stream_token hook + stream_callback push.
 
-        子类不应重写本方法；要拦截 token 请重写 ``on_stream_token``。
+        Subclasses should not override this method; to intercept tokens, override ``on_stream_token``.
         """
         try:
             transformed = self.on_stream_token(token)
@@ -554,17 +559,17 @@ class AgentRuntime(ABC, Generic[ResultT]):
 
 
     def get_tools_for_testing(self) -> "tuple[list, ResultT]":
-        """单测专用：构造一个 result 并绑到 ContextVar，返回 (tools, result)。"""
+        """For unit tests only: construct a result, bind it to the ContextVar, and return (tools, result)."""
         result = self.result_class()
         self._current_result_var.set(result)
         return self.build_tools(), result
 
-    # ───── DeepAgent / CreateAgent 形态共享样板 ──────────
-    # context_schema / dynamic_prompt / tool 装配 / 流式循环 / 取 reply
-    # StateGraphRuntime 不走这条路径（自己拼 state machine）。
+    # ───── Shared boilerplate for DeepAgent / CreateAgent forms ──────────
+    # context_schema / dynamic_prompt / tool assembly / streaming loop / extract reply
+    # StateGraphRuntime does not follow this path (it assembles its own state machine).
 
     def _build_context_schema(self):
-        """根据子类 context_extra_fields_schema() 动态生成 Pydantic schema。"""
+        """Dynamically generate a Pydantic schema based on the subclass's context_extra_fields_schema()."""
         from pydantic import create_model
 
         extra = self.context_extra_fields_schema() or {}
@@ -579,7 +584,7 @@ class AgentRuntime(ABC, Generic[ResultT]):
         return self._build_context_schema()(**fields)
 
     def _dynamic_system_prompt_middleware(self, default_fallback: str = "你是一个智能助手。"):
-        """返回一个 dynamic_prompt 中间件，从 ctx.system_prompt 取 prompt（空则回 fallback）。"""
+        """Return a dynamic_prompt middleware that takes the prompt from ctx.system_prompt (falls back if empty)."""
         from langchain.agents.middleware.types import dynamic_prompt, ModelRequest
 
         @dynamic_prompt
@@ -592,7 +597,7 @@ class AgentRuntime(ABC, Generic[ResultT]):
         return _dyn
 
     def _collect_all_tools(self) -> list:
-        """合并 build_tools + collect_skill_tools，附带统一日志。"""
+        """Merge build_tools + collect_skill_tools, with unified logging."""
         tools = list(self.build_tools() or [])
         skill_tools = self.collect_skill_tools() or []
         if skill_tools:
@@ -610,9 +615,9 @@ class AgentRuntime(ABC, Generic[ResultT]):
         ctx: Any,
         thread_id: str,
     ) -> tuple[dict, bool]:
-        """跑 graph.stream(stream_mode='messages')，逐 token 推到 _dispatch_stream_token。
+        """Run graph.stream(stream_mode='messages'), pushing each token to _dispatch_stream_token.
 
-        返回 (out_state, streamed_any)。供 DeepAgent / CreateAgent 复用。
+        Returns (out_state, streamed_any). Reused by DeepAgent / CreateAgent.
         """
         from agent_kit.harness import HARNESS_OBS
         from langchain_core.messages import AIMessageChunk
@@ -651,7 +656,7 @@ class AgentRuntime(ABC, Generic[ResultT]):
 
     @staticmethod
     def _extract_last_reply(all_messages: list) -> str:
-        """从消息流末尾找最后一条非 tool_call 的文本作为 reply。"""
+        """Find the last non-tool_call text from the end of the message stream to use as the reply."""
         for m in reversed(all_messages):
             if hasattr(m, "content") and not hasattr(m, "tool_call_id"):
                 content = extract_chunk_text(getattr(m, "content", ""))
@@ -659,7 +664,7 @@ class AgentRuntime(ABC, Generic[ResultT]):
                     return content.strip()
         return ""
 
-    # ───── 各 Runtime 必须实现的底层钩子 ──────────────
+    # ───── Low-level hooks each Runtime must implement ──────────────
 
     @abstractmethod
     def _build_graph(
@@ -669,14 +674,14 @@ class AgentRuntime(ABC, Generic[ResultT]):
         system_prompt: str = "",
         user_content: str = "",
     ):
-        """构造具体形态的 LangGraph 实例。
+        """Construct the concrete LangGraph instance for this form.
 
         DeepAgentRuntime  → create_deep_agent(...)
         ReactAgentRuntime → create_react_agent(...)
         StateGraphRuntime → self.build_state_graph(...).compile(...)
 
-        kwarg ``state/system_prompt/user_content`` 仅在 ``cache_graph=False`` 时由
-        ``_get_graph(...)`` 透传过来；缓存模式下为占位空值。
+        The kwargs ``state/system_prompt/user_content`` are only passed through by
+        ``_get_graph(...)`` when ``cache_graph=False``; in cache mode they are placeholder empty values.
         """
 
     @abstractmethod
@@ -690,9 +695,9 @@ class AgentRuntime(ABC, Generic[ResultT]):
         thread_id: str,
         result: ResultT,
     ) -> None:
-        """跑一次 graph，把结果写回 result（reply / raw_messages / extra）。"""
+        """Run the graph once, writing results back to result (reply / raw_messages / extra)."""
 
-    # ───── LLM 工厂（默认抛错，必须注入或由子类/Harness 重写）────
+    # ───── LLM factory (raises by default; must be injected or overridden by subclass/Harness) ────
 
     def _get_llm(self):
         if self._llm is None:
@@ -709,11 +714,11 @@ class AgentRuntime(ABC, Generic[ResultT]):
         system_prompt: str = "",
         user_content: str = "",
     ):
-        """按 cache_graph 决定是否复用 graph。
+        """Decide whether to reuse the graph based on cache_graph.
 
-        - cache_graph=True (默认): 懒加载并缓存；state/system_prompt/user_content 被忽略。
-        - cache_graph=False: 每轮重建并把 state/system_prompt/user_content 透传给
-          ``_build_graph(...)``，便于按 turn 决定 graph 拓扑。
+        - cache_graph=True (default): lazy-load and cache; state/system_prompt/user_content are ignored.
+        - cache_graph=False: rebuild each round and pass state/system_prompt/user_content through to
+          ``_build_graph(...)``, to decide graph topology per turn.
         """
         if not self.cache_graph:
             graph = self._build_graph(
@@ -731,10 +736,11 @@ class AgentRuntime(ABC, Generic[ResultT]):
         return self._graph
 
     def invalidate_graph(self) -> None:
-        """手动清掉缓存的 graph，下次 _get_graph() 时重建。
+        """Manually clear the cached graph, rebuilding it on the next _get_graph() call.
 
-        典型场景：业务节点动态注册新 skill / 切换 LLM 后，需要让 graph 重新装配。
-        cache_graph=False 时本方法不影响行为。
+        Typical scenario: after a business node dynamically registers a new skill / switches the LLM,
+        the graph needs to be reassembled.
+        When cache_graph=False this method has no effect on behavior.
         """
         self._graph = None
 
@@ -744,7 +750,7 @@ class AgentRuntime(ABC, Generic[ResultT]):
             rt = state.get("rt_thread_id") or state.get("sys_conversation_id")
         return f"{self.thread_id_prefix}__{rt or 'default'}"
 
-    # ───── run()：状态机入口 ──────────────────────────
+    # ───── run(): state machine entry point ──────────────────────────
 
     def run(
         self,
@@ -755,17 +761,17 @@ class AgentRuntime(ABC, Generic[ResultT]):
         counter_emitter: Optional[MetricEmitter] = None,
         histogram_emitter: Optional[MetricEmitter] = None,
     ) -> Command:
-        """Agent 状态机执行入口，返回 LangGraph Command。
+        """Agent state machine execution entry point, returns a LangGraph Command.
 
-        执行顺序：
-            before_call → 构造 result → should_run_agent → _execute_graph
+        Execution order:
+            before_call → construct result → should_run_agent → _execute_graph
             → after_agent → finalize
         """
         stream_token = self._stream_callback_var.set(stream_callback or _noop_stream)
         emit_counter = counter_emitter or _noop_emitter
         emit_histogram = histogram_emitter or _noop_emitter
 
-        # 每轮 run() 隔离的 request_scope 暂存区；before_call 之前 set 以便 before_call 可写
+        # request_scope scratch area isolated per run(); set before before_call so before_call can write to it
         scope_token = self._request_scope_var.set({})
 
         try:
@@ -855,10 +861,10 @@ class AgentRuntime(ABC, Generic[ResultT]):
                     )
                     result.reply = self.fallback_reply
             finally:
-                # outcome 三态：
-                #  - error: result.failed=True（含 should_run_agent 自身抛异常的情况）
-                #  - ok: agent 正常跑完
-                #  - should_run_agent_skipped: 业务主动判定不跑 agent（短路、低信号 ack 等）
+                # outcome three states:
+                #  - error: result.failed=True (including the case where should_run_agent itself raises)
+                #  - ok: agent ran normally to completion
+                #  - should_run_agent_skipped: business actively decided not to run the agent (short-circuit, low-signal ack, etc.)
                 if result.failed:
                     outcome = "error"
                 elif agent_ran:

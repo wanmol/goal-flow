@@ -15,12 +15,13 @@ logger = logging.getLogger(__name__)
 class SubAgentInitializeMiddleware(
     AgentMiddleware[ContextAgentState, ContextT, ResponseT]
 ):
-    """初始化子agent中间件"""
+    """Sub-agent initialization middleware"""
     
     @override
     def before_agent(self, state: ContextAgentState, runtime: Runtime[ContextT]) -> dict[str, Any] | None:
-        """初始化子agent，清空历史消息，添加用户查询, deepagents subagent执行的时候会把大模型返回的tools_args作为humanmessage传递
-           这里需要清空自动生成description作为humanmessage
+        """Initialize the sub-agent: clear history messages and add the user query. When a deepagents subagent
+           executes, it passes the tools_args returned by the LLM as a HumanMessage;
+           here we need to clear the auto-generated description that is used as a HumanMessage.
         """
         sys_sub_conversation_id = state["sys_sub_conversation_id"]
         if not sys_sub_conversation_id:

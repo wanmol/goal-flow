@@ -44,7 +44,7 @@ class TemplateTransformNode(BaseNode):
             for var1 in self.variables:
                 result_dict_parse[var1.variable] = VariableResolver().resolve_value_selector(var1.value_selector, state)
 
-        # 渲染模板
+        # Render the template
         tpl = Template(self.template)
         rendered = tpl.render(result_dict_parse)
         # print(rendered)

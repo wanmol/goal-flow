@@ -75,14 +75,14 @@ from goalflow.workflow_types import (
 
 
 class DifyDslParser:
-    # 内部服务地址 → 运行时 os.environ 查找的替换表。
-    # 键是导出 DSL 里可能出现的硬编码地址，值是生成代码中改用的表达式。
-    # code node 里地址带引号（Python 字面量），http node 里地址是裸串，故两种形式都覆盖。
+    # Internal service address → substitution table for os.environ lookups at runtime.
+    # Keys are hardcoded addresses that may appear in the exported DSL; values are the expressions used instead in the generated code.
+    # In a code node the address is quoted (Python literal); in an http node the address is a bare string, so both forms are covered.
     DEFAULT_HOST_SUBSTITUTIONS: Dict[str, str] = {
-        # code node（引号内的字符串字面量）
+        # code node (quoted string literal)
         "'http://39.44.47.98:8001/v1/rerank'": "os.environ['RERANK_URL']",
         "'http://39.11.230.55:8001/v1/rerank'": "os.environ['RERANK_URL']",
-        # http node（裸地址）
+        # http node (bare address)
         "http://39.44.47.98:8001/v1/rerank": "'os.environ[\"RERANK_URL\"]'",
         "http://39.11.230.55:8001/v1/rerank": "'os.environ[\"RERANK_URL\"]'",
     }
@@ -93,7 +93,7 @@ class DifyDslParser:
         host_substitutions: Optional[Dict[str, str]] = None,
     ):
         self.dsl_path = dsl_path
-        # None → 用默认表；传空 dict {} 可显式禁用替换。
+        # None → use the default table; passing an empty dict {} explicitly disables substitution.
         self.host_substitutions = (
             self.DEFAULT_HOST_SUBSTITUTIONS
             if host_substitutions is None
@@ -101,7 +101,7 @@ class DifyDslParser:
         )
 
     def parse(self) -> DifyDslDefinition:
-        # 只读解析：不修改用户的导出文件。替换只作用于内存字符串。
+        # Read-only parsing: does not modify the user's exported file. Substitution only applies to the in-memory string.
         with open(self.dsl_path, "r", encoding="utf-8") as f:
             content = f.read()
 
@@ -196,8 +196,8 @@ class DifyDslParser:
         print("parse node type:", node_type)
         common_node_fields = self._common_node_data_fields(node)
         data = None
-        # 根据节点类型创建对应的数据对象
-        if node_type == WfNodeType.LLM: 
+        # Create the corresponding data object based on the node type
+        if node_type == WfNodeType.LLM:
             context_config = ContextConfig()
             _context_config = node_data["context"]
             context_config.enabled = _context_config["enabled"]
@@ -432,7 +432,7 @@ class DifyDslParser:
                 variable_selector = _item_node["variable_selector"]
                 value = _item_node["value"]
                 
-                # 下面三种操作，值来源只能是变量
+                # For the three operations below, the value source can only be a variable
                 if any([
                     operation == AssignerOperation.OVER_WRITE,
                     operation == AssignerOperation.APPEND,
@@ -490,7 +490,7 @@ class DifyDslParser:
                 start_node_id=node_data["start_node_id"],
                 parallel_nums=parallel_nums,
                 error_handle_mode=error_handle_mode,
-                #这里仅仅做解析，用langgraph实现内部会强制并行，即使这里设置成了False
+                #This only parses; the langgraph implementation forces parallelism internally, even if this is set to False
                 is_parallel=node_data.get("is_parallel", True),
                 iterator_selector=node_data["iterator_selector"],
                 output_selector=node_data["output_selector"],
@@ -596,7 +596,7 @@ class DifyDslParser:
             raise Exception(f"parse error, invalid node type: {node_type} !")
 
         
-        # 创建并返回DifyNode实例
+        # Create and return the DifyNode instance
         return DifyGraphNode(
             data=data,
             id=node["id"],
@@ -652,13 +652,13 @@ class DifyDslParser:
     
     def _common_node_data_fields(self, node: dict) -> dict:
         """
-        初始化节点数据的公共字段。
+        Initialize the common fields of the node data.
 
         Args:
-            node_data (dict): 节点数据的原始字典。
+            node_data (dict): the raw dictionary of node data.
 
         Returns:
-            dict: 包含公共字段的字典。
+            dict: a dictionary containing the common fields.
         """
         node_data = node["data"]
         node_type = node_data["type"]

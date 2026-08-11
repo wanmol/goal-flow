@@ -1,16 +1,16 @@
-"""n8n JSON → 类型化 N8nWorkflow 解析器。
+"""n8n JSON → typed N8nWorkflow parser.
 
-只读解析：不修改用户的导出文件。
+Read-only parsing: does not modify the user's export file.
 
-connections 结构（以源节点**名称**为键）::
+connections structure (keyed by the source node **name**)::
 
     "connections": {
       "Start": {
-        "main": [                     # 输出类型
-          [                           # 输出索引 0（IF 节点即 true 分支）
+        "main": [                     # output type
+          [                           # output index 0 (the true branch for an IF node)
             {"node": "HTTP", "type": "main", "index": 0}
           ],
-          [ ... ]                     # 输出索引 1（IF 节点即 false 分支）
+          [ ... ]                     # output index 1 (the false branch for an IF node)
         ]
       }
     }
@@ -48,7 +48,7 @@ class N8nParser:
 
         workflow = N8nWorkflow(name=data.get("name", ""))
 
-        # 1. 解析节点（跳过 disabled）
+        # 1. Parse nodes (skip disabled ones)
         for raw in raw_nodes:
             node = N8nNode.from_json(raw)
             if node.disabled:
@@ -56,14 +56,14 @@ class N8nParser:
                 continue
             workflow.add_node(node)
 
-        # 2. 先建 name↔id 映射与起始节点（边解析需要按名称查 id）
+        # 2. Build the name↔id mapping and start node first (edge parsing needs to look up ids by name)
         workflow.init_graph_data()
 
-        # 3. 展开 connections → 边
+        # 3. Expand connections → edges
         self._parse_connections(data.get("connections", {}), workflow)
 
-        # connections 可能引入新的入边信息，但起始节点检测已在上面完成；
-        # 若此前靠“无入边”兜底选错，这里重算一次更稳妥。
+        # connections may introduce new incoming-edge info, but start node detection was done above;
+        # if the earlier "no incoming edge" fallback picked wrong, recomputing here is safer.
         workflow.init_graph_data()
 
         return workflow
@@ -77,14 +77,14 @@ class N8nParser:
         for source_name, output_types in connections.items():
             source_node = workflow.get_node_by_name(source_name)
             if source_node is None:
-                # 目标是 disabled 节点或名称不存在，跳过
+                # The target is a disabled node or the name does not exist, skip
                 logger.warning("n8n connection source not found", source=source_name)
                 continue
             if not isinstance(output_types, dict):
                 continue
 
             for output_type, output_slots in output_types.items():
-                # output_slots：List[List[target]]，外层索引=输出端口序号
+                # output_slots: List[List[target]], the outer index = the output port number
                 if not isinstance(output_slots, list):
                     continue
                 for output_index, targets in enumerate(output_slots):
