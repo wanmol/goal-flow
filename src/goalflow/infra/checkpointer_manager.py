@@ -117,7 +117,7 @@ class CheckpointerManager:
         
         logger.info(
             f"CheckpointerManager initialized with dedicated connection pool "
-            f"(pool_size={cls.POOL_SIZE}, pool_recycle={cls.POOL_RECYCLE}s)"
+            f"(pool_size={pool_size}, pool_recycle={pool_recycle}s)"
         )
     
     @classmethod
