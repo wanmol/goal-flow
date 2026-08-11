@@ -27,7 +27,7 @@ class CodeNode(BaseNode):
     def node_type(self) -> WfNodeType:
         return self.__node_type
     
-    # 需要改造成可以直接传外部函数（支持手工流程编排）
+    # TODO: support passing an external function directly (for manual flow orchestration)
     def __init__(self, *, code: str, code_language: str, outputs: Dict[str, Dict[str, str]], **kwargs):
         super().__init__(**kwargs)
         self.code = code
@@ -43,7 +43,7 @@ class CodeNode(BaseNode):
     def call(self, state: GenericState) -> NodeOutput:
         """
         Execute the code with the given state.
-        动态执行Python代码，支持从state中获取变量并返回结果
+        Dynamically executes Python code, reading variables from state and returning the result.
         """
 
         #print(state)
@@ -55,18 +55,18 @@ class CodeNode(BaseNode):
         import traceback
 
         try:
-            # 1. 准备执行环境和变量
+            # 1. Prepare the execution environment and variables
             execution_context = self._prepare_execution_context(state)
-            
-            # 2. 执行代码
+
+            # 2. Execute the code
             result = self._execute_code(execution_context)
-            
-            # 3. 处理输出
+
+            # 3. Process outputs
             filtered_output = self._filter_outputs(result)
-            
+
             del result,  execution_context
-            
-            # 4. 更新状态
+
+            # 4. Update state
             update_data =  VariableResolver.format_output(node_id=self.id, outputs=filtered_output)
 
             return Command(
@@ -74,7 +74,7 @@ class CodeNode(BaseNode):
                 goto=self.next_node_ids
             )
         except Exception as e:
-            error_msg = f"CodeNode执行失败 [{self.title}]: {str(e)}"
+            error_msg = f"CodeNode execution failed [{self.title}]: {str(e)}"
             logger.error("code node error",error_msg=error_msg)
             traceback.print_exc()
 
@@ -105,10 +105,10 @@ class CodeNode(BaseNode):
         return handler()
     
     def _prepare_execution_context(self, state: GenericState) -> Dict[str, Any]:
-        """准备代码执行的上下文变量"""
+        """Prepare the context variables for code execution."""
         context = {}
 
-        # 根据节点配置的变量映射提取值
+        # Extract values based on the node's configured variable mappings
         if self.variables:
             for var_config in self.variables:
                 var_name = var_config.variable
@@ -123,14 +123,14 @@ class CodeNode(BaseNode):
         return context
     
     def _execute_code(self, context: Dict[str, Any]) -> Dict[str, Any]:
-        """执行Python代码"""
+        """Execute the Python code."""
         if not self.code_language.lower().startswith("python"):
-            raise ValueError(f"不支持的代码语言: {self.code_language}")
-            # 创建安全的执行环境
+            raise ValueError(f"Unsupported code language: {self.code_language}")
+            # Create a safe execution environment
 
         safe_globals = {
         '__builtins__': {
-            # 基本类型和类型检查
+            # Basic types and type checks
             'len': len, 'sum': sum, 'max': max, 'min': min,
             'abs': abs, 'round': round, 'sorted': sorted,
             'range': range, 'enumerate': enumerate,'frozenset': frozenset,
@@ -138,21 +138,21 @@ class CodeNode(BaseNode):
             'str': str, 'int': int, 'float': float, 'bool': bool,
             'isinstance': isinstance, 'type': type, 'hasattr': hasattr,
 
-            # 加解密
+            # Encoding / decoding
             'bytes': bytes, 'bytearray': bytearray,
-            
-            # 异常类
+
+            # Exception classes
             'Exception': Exception, 'ValueError': ValueError, 'TypeError': TypeError,
             'KeyError': KeyError, 'IndexError': IndexError, 'AttributeError': AttributeError,
             'NameError': NameError, 'ZeroDivisionError': ZeroDivisionError,
             'RuntimeError': RuntimeError, 'ImportError': ImportError,
 
-            # 实用函数
+            # Utility functions
             'print': print, 'repr': repr, 'hash': hash,
             'any': any, 'all': all, 'filter': filter, 'map': map,
             'iter': iter, 'next': next, 'open': open,
-                 
-            # 模块导入
+
+            # Module import
             '__import__': __import__,
             'object': object,
             'staticmethod': staticmethod,
@@ -165,10 +165,10 @@ class CodeNode(BaseNode):
     }
         # safe_globals['__build_class__'] = __build_class__
         # safe_globals['__name__'] = '__main__'
-        # 执行代码
+        # Execute the code
         local_vars = {}
         try:
-            # 使用globals作为执行环境，这样import的模块可以在main函数中访问
+            # Use globals as the execution namespace so imported modules are visible inside main()
             exec(self.code, safe_globals, safe_globals)
             local_vars = safe_globals
         except Exception as e:
@@ -176,7 +176,7 @@ class CodeNode(BaseNode):
             logger.error(f"{self.formatted_name} code node error",exc_info=True)
             raise RuntimeError(f"code run error: {e}, source code : {self.code}") 
         
-        # 检查是否定义了main函数
+        # Check that a main function is defined
         if 'main' not in local_vars:
             logger.error(f"{self.formatted_name} code node error",detail="Code must define a 'main' function")
             raise ValueError("Code must define a 'main' function")
@@ -186,15 +186,15 @@ class CodeNode(BaseNode):
             logger.error(f"{self.formatted_name} code node error",detail="'main' must be a callable function")
             raise ValueError("'main' must be a callable function")
         
-        # 调用main函数
+        # Call the main function
         args = []
         try:
-            # 获取main函数的参数
+            # Inspect the main function's parameters
             import inspect
             sig = inspect.signature(main_func)
             params = list(sig.parameters.keys())
-            
-            # 准备参数
+
+            # Prepare arguments
             for param in params:
                 if param in context:
                     args.append(context[param])
@@ -202,10 +202,10 @@ class CodeNode(BaseNode):
                     logger.error(f"{self.formatted_name} code node error",detail=f"Missing required parameter: {param}")
                     raise ValueError(f"Missing required parameter: {param}")
 
-            # 执行main函数
+            # Execute the main function
             result = main_func(*args)
-            
-            # 确保返回值是字典
+
+            # Ensure the return value is a dict
             if not isinstance(result, dict):
                 logger.error(f"{self.formatted_name} code node error",detail=f"main function must return a dict, got {type(result)}")
                 raise ValueError(f"main function must return a dict, got {type(result)}")
@@ -224,18 +224,18 @@ class CodeNode(BaseNode):
             
     
     def _filter_outputs(self, execution_result: Dict[str, Any]) -> Dict[str, Any]:
-        """根据输出配置过滤结果"""
+        """Filter results according to the output configuration."""
         if not self.outputs:
-            # 如果没有配置输出，返回所有结果
+            # If no outputs are configured, return all results
             return execution_result
-        
-        # 只返回配置中指定的输出变量
+
+        # Only return the output variables specified in the configuration
         filtered = {}
         for var_name in self.outputs.keys():
             if var_name in execution_result:
                 filtered[var_name] = execution_result[var_name]
             else:
-                print(f"⚠️ 警告: 期望的输出变量 '{var_name}' 不存在于执行结果中")
+                print(f"⚠️ Warning: expected output variable '{var_name}' not found in execution result")
         
         #print(f"[CodeNode] 过滤后输出: {filtered}")
         return filtered
