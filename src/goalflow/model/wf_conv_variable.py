@@ -11,7 +11,7 @@ Base = declarative_base()
 
 
 class WorkflowConversationVariables(Base):
-    __tablename__ = "wf_conv_variable"
+    __tablename__ = "agent_conv_variable"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     conversation_id = Column(String(36), nullable=False, index=True, comment="会话ID")

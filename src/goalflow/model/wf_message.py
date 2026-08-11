@@ -25,7 +25,7 @@ Base = declarative_base()
 
 
 class Message(Base):
-    __tablename__ = "wf_message"
+    __tablename__ = "agent_message"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     conversation_id = Column(

@@ -29,7 +29,7 @@ Base = declarative_base()
 class HITLReview(Base):
     """HITL review record table"""
 
-    __tablename__ = "wf_hitl_review"
+    __tablename__ = "agent_hitl_review"
 
     # Primary key
     id = Column(BigInteger, primary_key=True, autoincrement=True)
