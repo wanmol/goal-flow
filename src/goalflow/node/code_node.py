@@ -33,29 +33,6 @@ class CodeNode(BaseNode):
         self.code = code
         self.code_language = code_language
         self.outputs = outputs
-        self.code = self.code.replace("'\n'", "'\\n'")
-        self.code = self.code.replace("\"\n\"","\"\\n\"")
-        self.code = self.code.replace("r'\\+'", "r'\\\\+'")
-        self.code = self.code.replace("r'\\'", "r'\\\\'")
-        self.code = self.code.replace("\nAND ","\\nAND ")
-        self.code = self.code.replace("f'\'{code}\''","f'\\'{code}\\''")
-        self.code = self.code.replace("'\n\n'","'\\n\\n'")
-        self.code = self.code.replace("\n\n ###","\\n\\n ###")
-        self.code = self.code.replace("{idx}：\n'","{idx}：\\n'")
-        self.code = self.code.replace("{detail} \n","{detail} \\n")
-        self.code = self.code.replace("{title} \n","{title} \\n")
-        
-        self.code = self.code.replace("]} \n","]} \\n")
-        self.code = self.code.replace("：\n","：\\n")
-        self.code = self.code.replace(": \n",": \\n")
-        
-        self.code = self.code.replace("r\'\x01年\'","r\'\\1年\'")
-        self.code = self.code.replace("r\'\x01年\x02月\'","r\'\\1年\\2月\'")
-        
-        self.code = self.code.replace("r'\1年'","r'\\1年'")
-        self.code = self.code.replace("r'\1年\2月'","r'\\1年\\2月'")
-        
-        self.code = self.code.replace("[,，\n]","[,，\\n]")
 
         # Extract output variable types
         self.output_vars = {}
