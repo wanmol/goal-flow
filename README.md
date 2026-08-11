@@ -2,6 +2,9 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
+[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](./pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 **G**raph-**O**rchestrated **A**gent **L**oop — a production-grade framework for building LLM applications on top of [LangGraph](https://github.com/langchain-ai/langgraph). It gives you two complementary ways to build:
 
 - **Visual-first workflows** — design a flow in [Dify](https://dify.ai)'s drag-and-drop editor, then transpile the exported DSL into a runnable, version-controllable LangGraph Python file with one command. No lock-in to Dify's runtime.
