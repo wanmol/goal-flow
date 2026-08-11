@@ -3,6 +3,9 @@
 **English** | [简体中文](README.zh-CN.md)
 
 [![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](./pyproject.toml)
+[![FastAPI](https://img.shields.io/badge/FastAPI-blue?style=flat-square)](https://fastapi.tiangolo.com/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-blue?style=flat-square)](https://github.com/langchain-ai/langgraph)
+[![Workflow](https://img.shields.io/badge/workflow-blue?style=flat-square)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 **G**raph-**O**rchestrated **A**gent **L**oop — a production-grade framework for building LLM applications on top of [LangGraph](https://github.com/langchain-ai/langgraph). It gives you two complementary ways to build:

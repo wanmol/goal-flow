@@ -2,6 +2,13 @@
 
 [English](README.md) | **简体中文**
 
+[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](./pyproject.toml)
+[![FastAPI](https://img.shields.io/badge/FastAPI-blue?style=flat-square)](https://fastapi.tiangolo.com/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-blue?style=flat-square)](https://github.com/langchain-ai/langgraph)
+[![Workflow](https://img.shields.io/badge/workflow-blue?style=flat-square)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
+
 **G**raph-**O**rchestrated **A**gent **L**oop —— 一个基于 [LangGraph](https://github.com/langchain-ai/langgraph) 构建 LLM 应用的生产级框架。它提供两种互补的构建方式:
 
 - **可视化优先的工作流** —— 在 [Dify](https://dify.ai) 的拖拽编辑器里设计流程,然后用一条命令把导出的 DSL 转译成可运行、可版本管理的 LangGraph Python 文件。不绑定 Dify 运行时。
