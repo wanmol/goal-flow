@@ -27,15 +27,15 @@ Because plain workflow graphs and plain agent loops each have limits, the framew
 
 | Need | What it gives you |
 |------|-------------------|
-| Design flows visually, run them yourself | Dify DSL → LangGraph `.py` transpiler ([docs/dify-transformer.md](docs/dify-transformer.md)) |
-| Rich built-in node library | 20+ nodes: LLM, code, HTTP, if/else, classifier, iteration, loop, tool, agent, doc-extractor … ([docs/nodes.md](docs/nodes.md)) |
-| Swap the wire protocol | Pluggable `DataAdapter` — Dify protocol by default, OpenAI-compatible included, bring your own ([docs/protocols-and-adapters.md](docs/protocols-and-adapters.md)) |
-| Reusable, LLM-matched capabilities | Markdown `SKILL.md` skills, matched to queries and injected into prompts ([docs/skills.md](docs/skills.md)) |
-| Real agent loops | vendored `agent_kit` package: Agent + middleware + harness ([docs/agent-kit.md](docs/agent-kit.md)) |
-| Conversation persistence | Redis (hot) + MySQL (durable), ES planned ([docs/storage-and-config.md](docs/storage-and-config.md)) |
-| Streaming, SSE, HITL | Token streaming with branch-aware routing, human-in-the-loop interrupts ([docs/streaming-and-hitl.md](docs/streaming-and-hitl.md)) |
-| Observability | Langfuse tracing + memory-leak monitoring |
-| Run cheap, scale horizontally | Async I/O-bound pipeline — 100 concurrent conversations on 2 vCPU / 4 GB × 2 replicas with no first-token regression |
+| **Design flows visually, run them yourself** | Dify DSL → LangGraph `.py` transpiler ([docs/dify-transformer.md](docs/dify-transformer.md)) |
+| **Rich built-in node library** | 20+ nodes: LLM, code, HTTP, if/else, classifier, iteration, loop, tool, agent, doc-extractor … ([docs/nodes.md](docs/nodes.md)) |
+| **Swap the wire protocol** | Pluggable `DataAdapter` — Dify protocol by default, OpenAI-compatible included, bring your own ([docs/protocols-and-adapters.md](docs/protocols-and-adapters.md)) |
+| **Reusable, LLM-matched capabilities** | Markdown `SKILL.md` skills, matched to queries and injected into prompts ([docs/skills.md](docs/skills.md)) |
+| **Real agent loops** | vendored `agent_kit` package: Agent + middleware + harness ([docs/agent-kit.md](docs/agent-kit.md)) |
+| **Conversation persistence** | Redis (hot) + MySQL (durable), ES planned ([docs/storage-and-config.md](docs/storage-and-config.md)) |
+| **Streaming, SSE, HITL** | Branch-aware token streaming — tokens stream only from nodes that provably reach an `answer`/`end`, so output from untaken branches never leaks to the client; plus human-in-the-loop interrupts ([docs/streaming-and-hitl.md](docs/streaming-and-hitl.md)) |
+| **Observability** | Langfuse tracing + memory-leak monitoring |
+| **Run cheap, scale horizontally** | Async I/O-bound pipeline — 100 concurrent conversations on 2 vCPU / 4 GB × 2 replicas with no first-token regression |
 
 ---
 

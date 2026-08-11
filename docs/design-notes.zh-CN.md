@@ -67,7 +67,7 @@ class AbstractDataAdapter(ABC):
 
 ## 命名、笔误与整洁度
 
-- `WorkflowError` / `StateValidationError` 异常处理器返回的是一个带 `status_code` 键的普通字典，而不是一个真正带该 HTTP 状态的 `JSONResponse`。应返回 `JSONResponse(status_code=..., content=...)`。
+- **已解决：** `WorkflowError` / `StateValidationError` 异常处理器此前返回的是一个带 `status_code` 键的普通字典，Starlette 会把它当作 ASGI app 去调用，因此从未真正产生 400 响应。现已改为返回 `JSONResponse(status_code=400, content=...)`。
 - `_get_status_code_by_error_msg` 用字符串匹配 `"status_code: 4"` 来判定 403——很脆弱；应改为在异常类型上携带一个真正的状态码。
 - `src/goalflow/workflow/generated/` 是在生成时创建的，没有已提交的内容；添加一个 `.gitkeep` 和一份简短的 README，以便清楚说明该目录的用途。
 

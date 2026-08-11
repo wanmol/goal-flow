@@ -28,15 +28,15 @@
 
 | 需求 | 它提供什么 |
 |------|-----------|
-| 可视化设计流程,自己运行 | Dify DSL → LangGraph `.py` 转译器([docs/dify-transformer.md](docs/dify-transformer.md)) |
-| 丰富的内置节点库 | 20+ 节点:LLM、代码、HTTP、条件分支、分类器、迭代、循环、工具、智能体、文档抽取 …([docs/nodes.md](docs/nodes.md)) |
-| 可替换的通信协议 | 可插拔 `DataAdapter` —— 默认 Dify 协议,内置 OpenAI 兼容,也可自带实现([docs/protocols-and-adapters.md](docs/protocols-and-adapters.md)) |
-| 可复用、与 LLM 匹配的能力 | Markdown `SKILL.md` 技能,按查询匹配并注入到提示词中([docs/skills.md](docs/skills.md)) |
-| 真正的智能体循环 | vendor 化的 `agent_kit` 包:Agent + 中间件 + Harness 治理底座([docs/agent-kit.md](docs/agent-kit.md)) |
-| 会话持久化 | Redis(热)+ MySQL(持久),ES 规划中([docs/storage-and-config.md](docs/storage-and-config.md)) |
-| 流式、SSE、HITL | 分支感知路由的 token 流式输出,人在环(human-in-the-loop)中断([docs/streaming-and-hitl.md](docs/streaming-and-hitl.md)) |
-| 可观测性 | Langfuse 链路追踪 + 内存泄漏监控 |
-| 低成本运行,水平扩展 | 异步 I/O 密集型管线 —— 2 vCPU / 4 GB × 2 副本支撑 100 路并发会话,首 token 无退化 |
+| **可视化设计流程,自己运行** | Dify DSL → LangGraph `.py` 转译器([docs/dify-transformer.md](docs/dify-transformer.md)) |
+| **丰富的内置节点库** | 20+ 节点:LLM、代码、HTTP、条件分支、分类器、迭代、循环、工具、智能体、文档抽取 …([docs/nodes.md](docs/nodes.md)) |
+| **可替换的通信协议** | 可插拔 `DataAdapter` —— 默认 Dify 协议,内置 OpenAI 兼容,也可自带实现([docs/protocols-and-adapters.md](docs/protocols-and-adapters.md)) |
+| **可复用、与 LLM 匹配的能力** | Markdown `SKILL.md` 技能,按查询匹配并注入到提示词中([docs/skills.md](docs/skills.md)) |
+| **真正的智能体循环** | vendor 化的 `agent_kit` 包:Agent + 中间件 + Harness 治理底座([docs/agent-kit.md](docs/agent-kit.md)) |
+| **会话持久化** | Redis(热)+ MySQL(持久),ES 规划中([docs/storage-and-config.md](docs/storage-and-config.md)) |
+| **流式、SSE、HITL** | 分支感知路由的 token 流式输出——只从可证明能到达 `answer`/`end` 的节点输出 token,未选中分支的输出绝不泄露给客户端;人在环(human-in-the-loop)中断([docs/streaming-and-hitl.md](docs/streaming-and-hitl.md)) |
+| **可观测性** | Langfuse 链路追踪 + 内存泄漏监控 |
+| **低成本运行,水平扩展** | 异步 I/O 密集型管线 —— 2 vCPU / 4 GB × 2 副本支撑 100 路并发会话,首 token 无退化 |
 
 ---
 

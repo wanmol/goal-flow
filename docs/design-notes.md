@@ -67,7 +67,7 @@ Also add a tiny "Dify adapter" class even if it's the identity/default, so all p
 
 ## Naming, typos, and hygiene
 
-- The `WorkflowError` / `StateValidationError` exception handlers return a plain dict with a `status_code` key instead of a real `JSONResponse` with that HTTP status. Return `JSONResponse(status_code=..., content=...)`.
+- **Resolved:** The `WorkflowError` / `StateValidationError` exception handlers previously returned a plain dict with a `status_code` key, which Starlette tried to invoke as an ASGI app so they never produced a 400. They now return `JSONResponse(status_code=400, content=...)`.
 - `_get_status_code_by_error_msg` string-matches `"status_code: 4"` to decide 403 — fragile; carry a real status on the exception type instead.
 - `src/goalflow/workflow/generated/` is created at generation time and has no committed contents; add a `.gitkeep` and a short README so the directory's purpose is clear.
 
