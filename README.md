@@ -44,17 +44,18 @@ Because plain workflow graphs and plain agent loops each have limits, the framew
 Start here, then follow the links into the topic files under [`docs/`](docs/).
 
 1. **[Getting Started](docs/getting-started.md)** — install, configure, run the server, register your first workflow.
-2. **[Architecture](docs/architecture.md)** — the big picture: request lifecycle, the three-layer streaming pipeline, how the pieces fit.
-3. **[Nodes Reference](docs/nodes.md)** — every built-in node, its purpose, config, and Dify mapping.
-4. **[Dify Transformer](docs/dify-transformer.md)** — convert a Dify DSL export into a runnable workflow file.
-5. **[Protocols & Data Adapters](docs/protocols-and-adapters.md)** — the interaction-protocol abstraction and how to implement a custom one.
-6. **[Streaming & HITL](docs/streaming-and-hitl.md)** — the streaming/SSE model and human-in-the-loop interrupts.
-7. **[Skills](docs/skills.md)** — authoring `SKILL.md`, matching, and prompt injection.
-8. **[Agent Kit](docs/agent-kit.md)** — the vendored `agent_kit` SDK: Agent, graph builders, middleware, harness.
-9. **[Storage & Config](docs/storage-and-config.md)** — Redis/MySQL persistence, config files, environment variables.
-10. **[API Reference](docs/api-reference.md)** — HTTP endpoints (chat, workflow, HITL, report, suggested questions).
-11. **[Security & Open-Sourcing Checklist](docs/security-and-open-sourcing.md)** — **read before publishing.**
-12. **[Design Notes & Improvement Suggestions](docs/design-notes.md)** — honest assessment and concrete refactors.
+2. **[End-to-End Tutorials](docs/tutorials.md)** — transpile a Dify flow, build an agent node, implement a custom data adapter.
+3. **[Architecture](docs/architecture.md)** — the big picture: request lifecycle, the three-layer streaming pipeline, how the pieces fit.
+4. **[Nodes Reference](docs/nodes.md)** — every built-in node, its purpose, config, and Dify mapping.
+5. **[Dify Transformer](docs/dify-transformer.md)** — convert a Dify DSL export into a runnable workflow file.
+6. **[Protocols & Data Adapters](docs/protocols-and-adapters.md)** — the interaction-protocol abstraction and how to implement a custom one.
+7. **[Streaming & HITL](docs/streaming-and-hitl.md)** — the streaming/SSE model and human-in-the-loop interrupts.
+8. **[Skills](docs/skills.md)** — authoring `SKILL.md`, matching, and prompt injection.
+9. **[Agent Kit](docs/agent-kit.md)** — the vendored `agent_kit` SDK: Agent, graph builders, middleware, harness.
+10. **[Storage & Config](docs/storage-and-config.md)** — Redis/MySQL persistence, config files, environment variables.
+11. **[API Reference](docs/api-reference.md)** — HTTP endpoints (chat, workflow, HITL, report, suggested questions).
+12. **[Security & Open-Sourcing Checklist](docs/security-and-open-sourcing.md)** — **read before publishing.**
+13. **[Design Notes & Improvement Suggestions](docs/design-notes.md)** — honest assessment and concrete refactors.
 
 ---
 

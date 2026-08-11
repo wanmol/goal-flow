@@ -85,7 +85,7 @@ Also add a tiny "Dify adapter" class even if it's the identity/default, so all p
 ## Testing & docs
 
 - There's a good test base (`test/unit_tests/`, `test/integration_tests/`, `src/agent_kit/tests/`). Wire it into CI and add a "how to run tests" section.
-- Add a couple of **end-to-end tutorials**: (1) transpile a tiny Dify flow and hit it, (2) build an `AgentBaseNode`, (3) implement a custom `DataAdapter`. These are the three things new users will want to do first.
+- **Added:** Three end-to-end tutorials now live in [tutorials.md](tutorials.md): (1) transpile a tiny Dify flow and hit it, (2) build an `AgentBaseNode`, (3) implement a custom `DataAdapter`. Tutorials 2 and 3 flag that those layers are defined but not yet wired into the default request path, so the reader knows where they're extending the framework.
 
 ## What's already good (keep it)
 

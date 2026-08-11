@@ -85,7 +85,7 @@ class AbstractDataAdapter(ABC):
 ## 测试与文档
 
 - 已有一个不错的测试基础（`test/unit_tests/`、`test/integration_tests/`、`src/agent_kit/tests/`）。把它接入 CI，并添加一个"如何运行测试"的章节。
-- 添加几个**端到端教程**：（1）转译一个小型 Dify 流程并调用它，（2）构建一个 `AgentBaseNode`，（3）实现一个自定义 `DataAdapter`。这是新用户最先想做的三件事。
+- **已添加：** 三个端到端教程现已收录于 [tutorials.zh-CN.md](tutorials.zh-CN.md)：（1）转译一个小型 Dify 流程并调用它，（2）构建一个 `AgentBaseNode`，（3）实现一个自定义 `DataAdapter`。教程 2 与教程 3 标注了这两层已定义但尚未接入默认请求链路，让读者清楚哪里是在扩展框架。
 
 ## 已经不错的部分（保持下去）
 

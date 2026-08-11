@@ -45,17 +45,18 @@
 从这里开始,再沿链接深入 [`docs/`](docs/) 下的专题文件。
 
 1. **[快速上手](docs/getting-started.md)** —— 安装、配置、启动服务、注册你的第一个工作流。
-2. **[架构](docs/architecture.md)** —— 全景视图:请求生命周期、三层流式管线、各部分如何协作。
-3. **[节点参考](docs/nodes.md)** —— 每个内置节点的用途、配置及 Dify 映射。
-4. **[Dify 转译器](docs/dify-transformer.md)** —— 把 Dify DSL 导出转换为可运行的工作流文件。
-5. **[协议与数据适配器](docs/protocols-and-adapters.md)** —— 交互协议抽象,以及如何实现自定义协议。
-6. **[流式与 HITL](docs/streaming-and-hitl.md)** —— 流式/SSE 模型与人在环中断。
-7. **[技能](docs/skills.md)** —— 编写 `SKILL.md`、匹配机制与提示词注入。
-8. **[Agent Kit](docs/agent-kit.md)** —— vendor 化的 `agent_kit` SDK:Agent、图构建器、中间件、Harness。
-9. **[存储与配置](docs/storage-and-config.md)** —— Redis/MySQL 持久化、配置文件、环境变量。
-10. **[API 参考](docs/api-reference.md)** —— HTTP 端点(对话、工作流、HITL、报告、推荐问题)。
-11. **[安全与开源检查清单](docs/security-and-open-sourcing.md)** —— **发布前必读。**
-12. **[设计笔记与改进建议](docs/design-notes.md)** —— 客观评估与具体重构建议。
+2. **[端到端教程](docs/tutorials.md)** —— 转译 Dify 流程、构建 agent 节点、实现自定义数据适配器。
+3. **[架构](docs/architecture.md)** —— 全景视图:请求生命周期、三层流式管线、各部分如何协作。
+4. **[节点参考](docs/nodes.md)** —— 每个内置节点的用途、配置及 Dify 映射。
+5. **[Dify 转译器](docs/dify-transformer.md)** —— 把 Dify DSL 导出转换为可运行的工作流文件。
+6. **[协议与数据适配器](docs/protocols-and-adapters.md)** —— 交互协议抽象,以及如何实现自定义协议。
+7. **[流式与 HITL](docs/streaming-and-hitl.md)** —— 流式/SSE 模型与人在环中断。
+8. **[技能](docs/skills.md)** —— 编写 `SKILL.md`、匹配机制与提示词注入。
+9. **[Agent Kit](docs/agent-kit.md)** —— vendor 化的 `agent_kit` SDK:Agent、图构建器、中间件、Harness。
+10. **[存储与配置](docs/storage-and-config.md)** —— Redis/MySQL 持久化、配置文件、环境变量。
+11. **[API 参考](docs/api-reference.md)** —— HTTP 端点(对话、工作流、HITL、报告、推荐问题)。
+12. **[安全与开源检查清单](docs/security-and-open-sourcing.md)** —— **发布前必读。**
+13. **[设计笔记与改进建议](docs/design-notes.md)** —— 客观评估与具体重构建议。
 
 ---
 
