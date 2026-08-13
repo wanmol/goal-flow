@@ -311,19 +311,22 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Detailed health check."""
-    
-    monitor = get_memory_monitor()
-    current = monitor.get_current_stats()
-    
-    try:
-        return {
-            "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
-            "memory_mb": current['rss_mb'],
-            "memory_percent": current['percent'],
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Service unhealthy: {str(e)}")
+
+    result = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+    # Memory stats are only available when the (opt-in) memory monitor is enabled.
+    if MEMORY_MONITOR_ENABLED:
+        try:
+            current = get_memory_monitor().get_current_stats()
+            result["memory_mb"] = current["rss_mb"]
+            result["memory_percent"] = current["percent"]
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Service unhealthy: {str(e)}")
+
+    return result
 
 
 # Middleware check; currently mysql and redis
@@ -740,7 +743,6 @@ def get_message_suggested2(user: str, message_id: str):
                 questions = json.loads(cleaned_content)
     return {"result": "success", "data": questions}
 
-@app.get("/memory-intensive")
 async def memory_intensive():
     """
     Memory-intensive operation, used for testing monitoring
@@ -768,7 +770,14 @@ async def memory_intensive():
         "message": "内存密集型操作完成",
         "remaining_items": len(data)
     }
- 
+
+
+# Diagnostic/test-only route (allocates 100k objects); only exposed when the
+# memory monitor is enabled, since it depends on the monitor and is a mild DoS.
+if MEMORY_MONITOR_ENABLED:
+    app.get("/memory-intensive")(memory_intensive)
+
+
 def main():
     """Console-script entry point (goalflow-server)."""
     uvicorn.run("goalflow.app:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
