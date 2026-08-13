@@ -86,40 +86,51 @@ class IterationNode(BaseNode):
         if not isinstance(inputs, list):
             raise ValueError("iteration node inputs must be list")
         
-        outputs = []
-        
+        # Pre-size the result list to the full input length and write each result
+        # into its own slot by index. This fixes two bugs in the old code:
+        #   1. data loss  — it only dispatched min(parallel_nums, len(inputs)) items,
+        #      silently dropping everything past parallel_nums.
+        #   2. ordering/race — every Send appended to one shared closure list, so
+        #      results landed in completion order (not input order) and multiple
+        #      concurrent branches mutated the same list.
+        # Per-index assignment to distinct slots is safe under CPython threading.
+        outputs = [None] * len(inputs)
+
         builder = StateGraph(BaseState)
-        
+
         def parallel_route(state: BaseState) -> BaseState:
             send_list = []
-            iterator_cnt = min(self.parallel_nums, len(inputs))
-            
-            for i in range(iterator_cnt):
+            # Dispatch ALL items; concurrency is bounded by max_concurrency below,
+            # not by truncating the work list.
+            for i in range(len(inputs)):
                 item = inputs[i]
                 state_copy = state.copy()
                 state_copy["output_variables"] = state_copy["output_variables"].copy()
                 update_data = VariableResolver.format_output(
-                    node_id=self.id, 
+                    node_id=self.id,
                     outputs={"item": item}
                 )
                 state_copy["output_variables"].update(update_data["output_variables"])
+                # 1-based round doubles as the 0-based result index (round - 1).
                 state_copy["iteration_round"] = i + 1
 
                 send_list.append(Send("call_subgraph", state_copy))
 
             return send_list
-        
+
         def call_subgraph(subgraph_state: BaseState) -> BaseState:
 
             iteration_round = subgraph_state.get("iteration_round", 0)
             item = VariableResolver.resolve_value_selector([self.id, "item"], subgraph_state)
-            
+
             logger.info("begin_execute_iteration_subgraph", iteration_round=iteration_round, item=item)
-            
+
             subgraph_outputs = self.subgraph.invoke(subgraph_state)
             output = VariableResolver.resolve_value_selector(self.output_selector, subgraph_outputs)
-            outputs.append(output)
-        
+            # Write to this item's own slot so the result order matches input order
+            # regardless of which branch finishes first.
+            outputs[iteration_round - 1] = output
+
         #builder.add_node("parallel_route", parallel_route)
         builder.add_node("call_subgraph", call_subgraph)
         builder.add_conditional_edges(
@@ -129,9 +140,12 @@ class IterationNode(BaseNode):
         )
 
         graph = builder.compile()
-        
-        graph.invoke(state)
-        
+
+        # parallel_nums is a concurrency cap, not a work cap. is_parallel=False runs
+        # the items one at a time (cap=1); otherwise cap at parallel_nums (min 1).
+        max_concurrency = max(1, self.parallel_nums) if self.is_parallel else 1
+        graph.invoke(state, config={"max_concurrency": max_concurrency})
+
         update = VariableResolver.format_output(node_id=self.id, outputs={"output":outputs})
         return Command(
             update=update,

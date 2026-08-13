@@ -29,7 +29,9 @@ class AgentNode(BaseNode):
     output_schema: Optional[Any] | None = None
     plugin_unique_identifier: str | None = None
     tools: AgentToolConfig
-    tool_dict: dict[str, Callable[..., Any]] = {}
+    # Annotation only — the real dict is created per instance in __init__ so
+    # instances/concurrent calls never share one mutable registry.
+    tool_dict: dict[str, Callable[..., Any]]
     # read only
     __node_type = WfNodeType.AGENT
 
@@ -59,6 +61,10 @@ class AgentNode(BaseNode):
         self.agent_strategy_label = agent_strategy_label
         self.agent_strategy_name = agent_strategy_name
         self.tools = tools
+        # Per-instance tool registry. Without this, tool_dict resolves to the
+        # class-level attribute below and every AgentNode instance (and concurrent
+        # call) shares one dict, clobbering each other's tool registrations.
+        self.tool_dict = {}
 
     def call(self, state: GenericState):
         variable_pool = self._merge_variables(state)
