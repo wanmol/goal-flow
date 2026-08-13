@@ -247,13 +247,6 @@ class LLM:
 
         result = llm.invoke(messages)
 
-        # Call the LLMNode's set_input_output method to set the trace's input and output
-        if self.llm_node is not None:
-            self.llm_node.set_input_output(messages, result)
-
-        #if span:
-        #    self.llm_node.end_trace(span, messages, result.content)
-
         logger.info("llm response", result=result,node_id=self.node_id)
 
         #Handle result of type json_schema
