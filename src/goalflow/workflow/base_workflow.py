@@ -393,9 +393,15 @@ class BaseWorkflow(Generic[GenericState],ABC):
     def execute(self,
         *,
         initial_state: GenericState,
-        config: Optional[RunnableConfig] = {"recursion_limit": 500,"max_concurrency":6},
+        config: Optional[RunnableConfig] = None,
         ) -> GenericState:
         """Execute the workflow"""
+
+        # Build a fresh config per call. Using a mutable dict as a default argument
+        # would share one object across every call and leak per-request state
+        # (thread_id, callbacks) between requests; copy any caller-supplied config
+        # so we never mutate it as a side effect.
+        config = {"recursion_limit": 500, "max_concurrency": 6} if config is None else dict(config)
 
         if self.environment_list is None:
             self.environment_list = []
@@ -415,7 +421,7 @@ class BaseWorkflow(Generic[GenericState],ABC):
         for item in self.conversation_list:
             initial_state["conversation_variables"][item.name] = item.value
 
-        configurable = config.get("configurable",{})
+        configurable = dict(config.get("configurable", {}))
         # used for checkpoint
         configurable["thread_id"] = uuid.uuid4()
         config["configurable"] = configurable
@@ -428,14 +434,17 @@ class BaseWorkflow(Generic[GenericState],ABC):
             initial_state,
             config
         )
-    
+
     def stream(self,
         initial_state: GenericState,
-        config: Optional[RunnableConfig] = {"recursion_limit": 500,"max_concurrency":6},
+        config: Optional[RunnableConfig] = None,
         *,
         stream_mode : List[str] = ["messages","updates"]
     ) -> Iterator[Any]:
         """Execute the workflow"""
+
+        # Fresh per-call config; see execute() for why a mutable default is unsafe.
+        config = {"recursion_limit": 500, "max_concurrency": 6} if config is None else dict(config)
 
         if self.environment_list is None:
             self.environment_list = []
@@ -455,7 +464,7 @@ class BaseWorkflow(Generic[GenericState],ABC):
         for item in self.conversation_list:
             initial_state["conversation_variables"][item.name] = item.value
 
-        configurable = config.get("configurable",{})
+        configurable = dict(config.get("configurable", {}))
         # used for checkpoint
         configurable["thread_id"] = uuid.uuid4()
         config["configurable"] = configurable
@@ -556,8 +565,11 @@ class BaseWorkflow(Generic[GenericState],ABC):
             callbacks.append(langfuse_handler)
             config["callbacks"] = callbacks
 
-            # Add metadata to config for langfuse handler to use
-            metadata = config.get("metadata",{})
+            # Add metadata to config for langfuse handler to use.
+            # Copy the existing metadata dict before updating so we never mutate a
+            # caller-supplied metadata object in place (matters for resume(), which
+            # receives config directly from the caller).
+            metadata = dict(config.get("metadata", {}))
             if _langfuse_metadata:
                 metadata.update(_langfuse_metadata)
                 config["metadata"] = metadata

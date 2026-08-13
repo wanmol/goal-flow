@@ -268,8 +268,8 @@ class DifyDslParser:
                 **common_node_fields
             )
             
-            #TODO
-            #safe_check(data.code)
+            # Screen the code-node body at parse time; CodeNode re-validates at runtime.
+            safe_check(data.code)
         elif node_type == WfNodeType.HTTP_REQUEST:
             # parse authorization
             _auth_config = node_data.get("authorization", None)
@@ -750,16 +750,63 @@ class DifyDslParser:
             
         return conditions
 
-# simple safe check    
+# simple safe check
+# Names and attributes that indicate a code node is attempting host/process access
+# or a sandbox escape. This is a coarse screen at parse time; the CodeNode runtime
+# performs the authoritative AST validation before execution.
+_UNSAFE_CALL_NAMES = frozenset({
+    "open", "eval", "exec", "compile", "__import__",
+    "globals", "vars", "getattr", "setattr", "delattr", "input",
+})
+
+# Modules a code node may import. Kept in sync with CodeNode.ALLOWED_IMPORT_MODULES;
+# anything giving process/filesystem/network access is excluded.
+_ALLOWED_IMPORT_MODULES = frozenset({
+    "json", "math", "re", "datetime", "random", "statistics",
+    "decimal", "fractions", "collections", "itertools", "functools",
+    "string", "base64", "hashlib", "uuid", "time",
+})
+
+
 def safe_check(code: str):
     if code is None:
         return
 
-    tree = ast.parse(code)
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        raise ValueError(f"code node syntax error: {e}") from e
+
     for node in ast.walk(tree):
-        if all(
-            isinstance(node,ast.Call),
-            isinstance(node.func,ast.Name),
-            node.func.id in ["open","eval","exec"]
+        # Reject calls to dangerous builtins, e.g. open(...) / eval(...).
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id in _UNSAFE_CALL_NAMES
         ):
-            raise ValueError("unsafe func call not allowed")
+            raise ValueError(
+                f"unsafe function call '{node.func.id}' not allowed in code node"
+            )
+        # Reject dunder attribute access used for ().__class__.__subclasses__() escapes.
+        if (
+            isinstance(node, ast.Attribute)
+            and node.attr.startswith("__")
+            and node.attr.endswith("__")
+        ):
+            raise ValueError(
+                f"access to dunder attribute '{node.attr}' not allowed in code node"
+            )
+        # Reject imports of modules outside the compute-only allowlist.
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                top_level = alias.name.split(".", 1)[0]
+                if top_level not in _ALLOWED_IMPORT_MODULES:
+                    raise ValueError(
+                        f"import of module '{alias.name}' not allowed in code node"
+                    )
+        if isinstance(node, ast.ImportFrom):
+            top_level = (node.module or "").split(".", 1)[0]
+            if top_level not in _ALLOWED_IMPORT_MODULES:
+                raise ValueError(
+                    f"import from module '{node.module}' not allowed in code node"
+                )

@@ -21,16 +21,31 @@ from goalflow.constants import (
     THINKING_CONTENT_KEY
 )
 from goalflow.tool.utils import VariableResolver
+from goalflow.workflow.stream.workflow_stream_out_decision_route import (
+    EndStreamGenerateRoute,
+)
 
 
 class WorkflowStreamProcessor(Generic[GenericState]):
     def __init__(
-        self, 
+        self,
         workflow: BaseWorkflow[GenericState]
     ) -> None:
         self.workflow = workflow
 
-        self.end_stream_generate_routes = self.workflow.end_stream_generate_routes
+        # workflow.end_stream_generate_routes is built once in BaseWorkflow.__init__
+        # and shared across every request on this singleton workflow. _remove_dependencies
+        # mutates end_dependencies in place, so copy it per request to avoid the first
+        # request permanently stripping edges for all later/concurrent requests.
+        shared_routes = self.workflow.end_stream_generate_routes
+        self.end_stream_generate_routes = EndStreamGenerateRoute(
+            end_dependencies={
+                node_id: list(deps)
+                for node_id, deps in shared_routes.end_dependencies.items()
+            },
+            # read-only here -> safe to share.
+            end_stream_variable_selector_mapping=shared_routes.end_stream_variable_selector_mapping,
+        )
         
         self.route_position = {}
         for end_node_id, _ in self.end_stream_generate_routes.end_stream_variable_selector_mapping.items():
@@ -164,7 +179,7 @@ class WorkflowStreamProcessor(Generic[GenericState]):
                 node : BaseNode = self.workflow.get_node(node_id)
                 
                 # workflow end output content
-                if node.type == WfNodeType.END:
+                if node.type == WfNodeType.END.value:
                     event_data = event_data["outputs"]
 
                 event = NodeRunSucceededEvent(
@@ -336,8 +351,8 @@ class WorkflowStreamProcessor(Generic[GenericState]):
         is_branch_node = (
             node.type
             in {
-                WfNodeType.IF_ELSE,
-                WfNodeType.QUESTION_CLASSIFIER,
+                WfNodeType.IF_ELSE.value,
+                WfNodeType.QUESTION_CLASSIFIER.value,
             }
             or node.error_strategy == ErrorStrategy.FAIL_BRANCH
         )

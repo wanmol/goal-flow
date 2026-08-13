@@ -39,17 +39,22 @@ class FastAPIMemoryMonitor:
         self.type_stats_timestamp = 0
         self.type_stats_cache_ttl = 30  # cache TTL (seconds)
 
-    def snapshot(self, label: str = None) -> Dict:
+    def snapshot(self, label: str = None, force_gc: bool = False) -> Dict:
         """
         Take a snapshot of the current memory
 
         Args:
             label: snapshot label, used to identify the current operation
+            force_gc: run a full gc.collect() and count all live objects before
+                snapshotting. This is expensive (holds the GIL, walks the whole
+                heap) and must NOT be used on the per-request hot path; it is only
+                appropriate for explicit leak analysis. Defaults to False.
 
         Returns:
             Memory data dictionary
         """
-        gc.collect()
+        if force_gc:
+            gc.collect()
 
         mem_info = self.process.memory_info()
         memory_data = {
@@ -59,7 +64,9 @@ class FastAPIMemoryMonitor:
             'rss_mb': mem_info.rss / 1024 / 1024,
             'vms_mb': mem_info.vms / 1024 / 1024,
             'percent': self.process.memory_percent(),
-            'objects': len(gc.get_objects()),
+            # len(gc.get_objects()) walks the entire heap; only do it alongside a
+            # forced collection so the cheap sampling path stays cheap.
+            'objects': len(gc.get_objects()) if force_gc else None,
             'gc_collections': gc.get_count()
         }
 
@@ -138,7 +145,12 @@ class FastAPIMemoryMonitor:
         end = relevant_snapshots[-1]
 
         rss_growth = end['rss_mb'] - start['rss_mb']
-        obj_growth = end['objects'] - start['objects']
+        # Object counts are only captured on forced-GC snapshots; fall back to 0
+        # growth when either endpoint didn't record a count (cheap sampling path).
+        if start.get('objects') is not None and end.get('objects') is not None:
+            obj_growth = end['objects'] - start['objects']
+        else:
+            obj_growth = 0
         time_range = end['timestamp'] - start['timestamp']
 
         # Calculate growth rates

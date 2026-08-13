@@ -22,7 +22,8 @@ from langchain_core.messages import AIMessageChunk
 from goalflow.workflow.stream.chatflow_stream_out_decision_route import (
     VarGenerateRouteChunk,
     TextGenerateRouteChunk,
-    GenerateRouteChunk
+    GenerateRouteChunk,
+    AnswerStreamGenerateRoute
 )
 from goalflow.tool.utils import VariableResolver
 from goalflow.constants import (
@@ -43,8 +44,23 @@ class ChatflowStreamProcessor(Generic[GenericState]):
         workflow: BaseWorkflow[GenericState]
     ):
         self.workflow = workflow
-        # record the output route config under each answer_node_id
-        self.generate_routes = workflow.answer_stream_generate_routes
+        # record the output route config under each answer_node_id.
+        # NOTE: workflow.answer_stream_generate_routes is built once in
+        # BaseWorkflow.__init__ and shared by every request on this (singleton)
+        # workflow instance. _remove_dependencies mutates answer_dependencies in
+        # place, so we must work on a per-request copy or the first request would
+        # permanently strip edges for all subsequent/concurrent requests.
+        shared_routes = workflow.answer_stream_generate_routes
+        self.generate_routes = AnswerStreamGenerateRoute(
+            # answer_dependencies is mutated per request -> copy dict + each list
+            # (the edge objects inside are only read, never mutated).
+            answer_dependencies={
+                node_id: list(edges)
+                for node_id, edges in shared_routes.answer_dependencies.items()
+            },
+            # answer_gen_route_chunks is read-only here -> safe to share.
+            answer_gen_route_chunks=shared_routes.answer_gen_route_chunks,
+        )
         # record the position of the next route item under each answer_node_id
         # :key answer_node_id
         # :value position of the next route item to process
@@ -426,9 +442,9 @@ class ChatflowStreamProcessor(Generic[GenericState]):
         is_branch_node = (
             node.type
             in {
-                WfNodeType.ANSWER,
-                WfNodeType.IF_ELSE,
-                WfNodeType.QUESTION_CLASSIFIER,
+                WfNodeType.ANSWER.value,
+                WfNodeType.IF_ELSE.value,
+                WfNodeType.QUESTION_CLASSIFIER.value,
             }
             or node.error_strategy == ErrorStrategy.FAIL_BRANCH
         )

@@ -91,6 +91,14 @@ from goalflow.monitor.memory_routes_accurate import router as memory_router_accu
 
 logger = get_logger(__name__)
 
+# Memory monitoring is a diagnostic tool that spawns background threads, snapshots
+# on every request, and exposes unauthenticated diagnostic routes. It is opt-in and
+# OFF by default so the framework doesn't instrument every request or run heap walks
+# in production. Enable with MEMORY_MONITOR_ENABLED=true.
+MEMORY_MONITOR_ENABLED = os.getenv("MEMORY_MONITOR_ENABLED", "false").strip().lower() in (
+    "1", "true", "yes", "on",
+)
+
 
 # Pydantic models for request/response
 class WorkflowInput(BaseModel):
@@ -133,34 +141,41 @@ async def lifespan(app: FastAPI):
     # Load middleware checks
     middle_health_check()
 
-    # Initialize memory monitoring
-    monitor = init_memory_monitor("MyFastAPIApp")
+    # Initialize memory monitoring (opt-in; see MEMORY_MONITOR_ENABLED).
+    monitor = None
+    leak_check_thread = None
+    if MEMORY_MONITOR_ENABLED:
+        monitor = init_memory_monitor("MyFastAPIApp")
 
-    # Start the background monitoring thread (collects once every 10 seconds)
-    monitor.start_background_monitoring(interval=10)
+        # Start the background monitoring thread (collects once every 10 seconds)
+        monitor.start_background_monitoring(interval=10)
 
-    # Periodically check for memory leaks (every 5 minutes)
-    import threading
+        # Periodically check for memory leaks (every 5 minutes)
+        import threading
 
-    def periodic_leak_check():
-        while True:
-            try:
-                report = monitor.analyze_leak()
-                if report.get("leak_detected"):
-                    # An alert can be sent here, e.g. email, Slack, etc.
-                    print(f"🚨 内存泄漏警报: {report}")
-            except Exception as e:
-                print(f"泄漏检查失败: {e}")
+        leak_stop_event = threading.Event()
 
-            # Check once every 5 minutes
-            threading.Event().wait(300)
-    
-    leak_check_thread = threading.Thread(
-        target=periodic_leak_check,
-        daemon=True,
-        name="LeakCheckThread"
-    )
-    leak_check_thread.start()
+        def periodic_leak_check():
+            while not leak_stop_event.is_set():
+                try:
+                    report = monitor.analyze_leak()
+                    if report.get("leak_detected"):
+                        # An alert can be sent here, e.g. email, Slack, etc.
+                        logger.warning("memory leak detected", report=report)
+                except Exception as e:
+                    logger.error("leak check failed", error=str(e))
+
+                # Check once every 5 minutes (interruptible on shutdown)
+                leak_stop_event.wait(300)
+
+        leak_check_thread = threading.Thread(
+            target=periodic_leak_check,
+            daemon=True,
+            name="LeakCheckThread"
+        )
+        leak_check_thread.start()
+    else:
+        logger.info("memory monitoring disabled (set MEMORY_MONITOR_ENABLED=true to enable)")
 
     # app.state.executor = executor
 
@@ -171,7 +186,9 @@ async def lifespan(app: FastAPI):
         # Synchronous cleanup operations
         Database.close()
         RedisClusterManager.close()
-        monitor.stop_monitoring()
+        if monitor is not None:
+            leak_stop_event.set()
+            monitor.stop_monitoring()
 
 
 # FastAPI app initialization
@@ -182,17 +199,41 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins="*",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Add CORS middleware.
+# Origins come from the CORS_ALLOW_ORIGINS env var (comma-separated); default is
+# empty (no cross-origin access) so a misconfigured deployment fails closed.
+# A wildcard "*" MUST NOT be combined with allow_credentials=True — Starlette would
+# then reflect any Origin and return Access-Control-Allow-Credentials: true, letting
+# any site make credentialed cross-origin reads. So credentials are only enabled
+# when an explicit origin allow-list is configured.
+_cors_env = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+_cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+_cors_allow_wildcard = "*" in _cors_origins or _cors_env == "*"
 
-# Add memory monitoring middleware
-app.add_middleware(MemoryMonitoringMiddleware)
+if _cors_allow_wildcard:
+    logger.warning(
+        "CORS is configured with a wildcard origin; credentials are disabled. "
+        "Set CORS_ALLOW_ORIGINS to an explicit comma-separated allow-list to enable credentials."
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+# Add memory monitoring middleware (opt-in; see MEMORY_MONITOR_ENABLED)
+if MEMORY_MONITOR_ENABLED:
+    app.add_middleware(MemoryMonitoringMiddleware)
 
 # Register HITL API router
 app.include_router(hitl_router)
@@ -200,9 +241,10 @@ app.include_router(hitl_router)
 # Register Report API router
 app.include_router(report_router)
 
-# Register memory monitoring routes
-app.include_router(memory_router)
-app.include_router(memory_router_accurate)
+# Register memory monitoring routes (opt-in; these are diagnostic and unauthenticated)
+if MEMORY_MONITOR_ENABLED:
+    app.include_router(memory_router)
+    app.include_router(memory_router_accurate)
 
 def prepare_initial_state(workflow_input: WorkflowInput) -> BaseState:
     """Prepare initial state from input."""

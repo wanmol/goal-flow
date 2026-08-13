@@ -10,6 +10,82 @@ from goalflow.config import get_logger
 
 logger = get_logger(__name__)
 
+# Modules a code node is allowed to import. Anything giving process/filesystem/
+# network access (os, sys, subprocess, socket, importlib, ctypes, ...) is excluded
+# on purpose. Keep this list narrow; add only side-effect-free compute modules.
+ALLOWED_IMPORT_MODULES = frozenset({
+    "json", "math", "re", "datetime", "random", "statistics",
+    "decimal", "fractions", "collections", "itertools", "functools",
+    "string", "base64", "hashlib", "uuid", "time",
+})
+
+# Builtin names that are never allowed to be referenced from user code. These are
+# the primitives used to escape the restricted namespace or reach the host.
+BLOCKED_BUILTIN_NAMES = frozenset({
+    "eval", "exec", "compile", "open", "__import__", "globals", "vars",
+    "getattr", "setattr", "delattr", "input", "breakpoint", "memoryview",
+    "__builtins__", "object",
+})
+
+
+def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+    """A restricted replacement for __import__ that only permits an allowlist.
+
+    The import machinery (the ``import`` statement) calls this, so it guards both
+    explicit and statement-form imports as defense-in-depth alongside the AST scan.
+    """
+    top_level = name.split(".", 1)[0]
+    if top_level not in ALLOWED_IMPORT_MODULES:
+        raise ImportError(f"import of module '{name}' is not allowed in code node")
+    return __import__(name, globals, locals, fromlist, level)
+
+
+def _validate_code_ast(code: str) -> None:
+    """Statically reject code that could escape the restricted exec namespace.
+
+    Blocks dunder attribute access (``__class__``/``__subclasses__``/``__globals__``
+    ... — the standard sandbox-escape traversal), references to dangerous builtin
+    names, and imports of modules outside the allowlist. This is a screen, not a
+    substitute for a real OS-level sandbox, but it removes the trivial escapes.
+    """
+    import ast
+
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        raise ValueError(f"code node syntax error: {e}") from e
+
+    for node in ast.walk(tree):
+        # Dunder attribute access is the pivot for ().__class__.__subclasses__()
+        # style escapes; disallow any __dunder__ attribute.
+        if isinstance(node, ast.Attribute):
+            attr = node.attr
+            if attr.startswith("__") and attr.endswith("__"):
+                raise ValueError(
+                    f"access to dunder attribute '{attr}' is not allowed in code node"
+                )
+        # Direct references to dangerous builtins.
+        elif isinstance(node, ast.Name):
+            if node.id in BLOCKED_BUILTIN_NAMES:
+                raise ValueError(
+                    f"use of '{node.id}' is not allowed in code node"
+                )
+        # import os / import subprocess as x / from os import ...
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                top_level = alias.name.split(".", 1)[0]
+                if top_level not in ALLOWED_IMPORT_MODULES:
+                    raise ValueError(
+                        f"import of module '{alias.name}' is not allowed in code node"
+                    )
+        elif isinstance(node, ast.ImportFrom):
+            top_level = (node.module or "").split(".", 1)[0]
+            if top_level not in ALLOWED_IMPORT_MODULES:
+                raise ValueError(
+                    f"import from module '{node.module}' is not allowed in code node"
+                )
+
+
 class CodeNode(BaseNode):
     """
     Code execution node for running Python code.
@@ -126,8 +202,15 @@ class CodeNode(BaseNode):
         """Execute the Python code."""
         if not self.code_language.lower().startswith("python"):
             raise ValueError(f"Unsupported code language: {self.code_language}")
-            # Create a safe execution environment
 
+        # Statically screen the source before executing it: reject dunder-attribute
+        # escapes, dangerous builtin names, and non-allowlisted imports.
+        _validate_code_ast(self.code)
+
+        # Create a restricted execution environment. Note: exec() on untrusted input
+        # is not a true security boundary (no CPU/memory/time limits); the AST scan
+        # plus this trimmed builtin set only removes the trivial escape paths. For
+        # hostile input, run this in an OS-level sandbox (subprocess + seccomp/nsjail).
         safe_globals = {
         '__builtins__': {
             # Basic types and type checks
@@ -150,21 +233,21 @@ class CodeNode(BaseNode):
             # Utility functions
             'print': print, 'repr': repr, 'hash': hash,
             'any': any, 'all': all, 'filter': filter, 'map': map,
-            'iter': iter, 'next': next, 'open': open,
+            'iter': iter, 'next': next,
 
-            # Module import
-            '__import__': __import__,
-            'object': object,
+            # Restricted import: only the compute-only allowlist above. Needed so
+            # both `import json` statements and internal machinery work, but nothing
+            # that reaches the OS/network can be imported.
+            '__import__': _safe_import,
             'staticmethod': staticmethod,
             'classmethod': classmethod,
             'property': property,
+            # __build_class__ is required so `class` statements work inside user code.
             '__build_class__': __build_class__,
             '__name__' : '__main__',
         },
         "json": __import__("json")
     }
-        # safe_globals['__build_class__'] = __build_class__
-        # safe_globals['__name__'] = '__main__'
         # Execute the code
         local_vars = {}
         try:
