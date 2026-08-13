@@ -89,7 +89,7 @@ def call(self, state: GenericState) -> NodeOutput: ...
 |------|------|---------|
 | **HttpRequestNode** | `http-request` | 模板化的 HTTP 请求（url/headers/params/body），支持 SSE、重试/超时、fail-branch/default-value。 |
 | **ToolNode** | `tool` | 按 `tool_provider_config` 执行一个绑定的外部工具函数，带指数退避重试（不可重试：`ValueError`、`TypeError` 等）。 |
-| **KnowledgeRetrievalNode** | `knowledge-retrieval` | 已弃用的桩实现，返回空结果（为保持图兼容性而保留）。 |
+| **KnowledgeRetrievalNode** | `knowledge-retrieval` | 对 query 做 embedding，经可插拔后端（none/http/Milvus）检索相关 chunk。见 [knowledge-retrieval.zh-CN.md](knowledge-retrieval.zh-CN.md)。 |
 
 ### 迭代与循环
 

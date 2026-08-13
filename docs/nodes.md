@@ -89,7 +89,7 @@ Each node maps to a `WfNodeType` and its Dify equivalent.
 |------|------|---------|
 | **HttpRequestNode** | `http-request` | Templated HTTP request (url/headers/params/body), SSE support, retry/timeout, fail-branch/default-value. |
 | **ToolNode** | `tool` | Executes a bound external tool function per `tool_provider_config`, with exponential-backoff retry (non-retryable: `ValueError`, `TypeError`, …). |
-| **KnowledgeRetrievalNode** | `knowledge-retrieval` | Deprecated stub returning an empty result (kept for graph compatibility). |
+| **KnowledgeRetrievalNode** | `knowledge-retrieval` | Embeds the query and retrieves relevant chunks via a pluggable backend (none/http/Milvus). See [knowledge-retrieval.md](knowledge-retrieval.md). |
 
 ### Iteration & loop
 

@@ -642,6 +642,13 @@ class DifyKnowledgeNodeData(DifyNodeDataBase):
     ):
         super().__init__(**kwargs)
         self.dataset_ids = dataset_ids
+        self.query_variable_selector = query_variable_selector
+        self.retrieval_mode = retrieval_mode
+        self.multiple_retrieval_config = multiple_retrieval_config
+        self.single_retrieval_config = single_retrieval_config
+        self.metadata_filtering_mode = metadata_filtering_mode
+        self.metadata_model_config = metadata_model_config
+        self.metadata_filtering_conditions = metadata_filtering_conditions
 
 
     

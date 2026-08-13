@@ -545,6 +545,13 @@ class DifyDslParser:
         # removed later
         elif node_type == WfNodeType.KNOWLEDGE_RETRIEVAL:
             data = DifyKnowledgeNodeData(
+                dataset_ids=node_data.get("dataset_ids"),
+                query_variable_selector=node_data.get("query_variable_selector"),
+                retrieval_mode=node_data.get("retrieval_mode"),
+                multiple_retrieval_config=node_data.get("multiple_retrieval_config"),
+                single_retrieval_config=node_data.get("single_retrieval_config"),
+                metadata_filtering_mode=node_data.get("metadata_filtering_mode"),
+                metadata_filtering_conditions=node_data.get("metadata_filtering_conditions"),
                 **common_node_fields
             )
         elif node_type == WfNodeType.TOOL:

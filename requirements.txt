@@ -76,3 +76,8 @@ Pillow>=10.0.0
 
 # Alibaba Cloud OSS
 oss2>=2.18.0
+
+# Optional: Milvus vector store for the knowledge-retrieval node
+# (only needed when KNOWLEDGE_RETRIEVER_BACKEND=milvus). Install with:
+#   pip install pymilvus
+# pymilvus>=2.4.0

@@ -743,11 +743,25 @@ class DifyNodeVisitor(DifyNodeAbstractVisitor):
     def visit_knowledge_retrieval(self, node: DifyGraphNode[DifyKnowledgeNodeData]):
         """Visit a knowledge retrieval node and generate its code."""
         print("begin visit knowledge retrieval node")
-        
+
         common_args = self._get_common_args(node)
+        # Emit config as repr() literals so quotes/backslashes in the DSL can't
+        # break out of the generated source.
+        dataset_ids = getattr(node.data, "dataset_ids", None) or []
+        query_selector = getattr(node.data, "query_variable_selector", None) or []
+        retrieval_config = {
+            "retrieval_mode": getattr(node.data, "retrieval_mode", None),
+            "multiple_retrieval_config": getattr(node.data, "multiple_retrieval_config", None),
+            "single_retrieval_config": getattr(node.data, "single_retrieval_config", None),
+            "metadata_filtering_mode": getattr(node.data, "metadata_filtering_mode", None),
+            "metadata_filtering_conditions": getattr(node.data, "metadata_filtering_conditions", None),
+        }
         code = f'''        # create knowledge retrieval node[id={node.id},title={node.data.title}]
         common_args = self._fix_common_args({common_args})
         knowledge_node_{node.id} = KnowledgeRetrievalNode(
+            dataset_ids={dataset_ids!r},
+            query_variable_selector={query_selector!r},
+            retrieval_config={retrieval_config!r},
             **common_args
         )
         self.nodes.append(knowledge_node_{node.id})

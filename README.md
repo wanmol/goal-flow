@@ -31,6 +31,7 @@ Because plain workflow graphs and plain agent loops each have limits, the framew
 | **Rich built-in node library** | 20+ nodes: LLM, code, HTTP, if/else, classifier, iteration, loop, tool, agent, doc-extractor … ([docs/nodes.md](docs/nodes.md)) |
 | **Swap the wire protocol** | Pluggable `DataAdapter` — Dify protocol by default, OpenAI-compatible included, bring your own ([docs/protocols-and-adapters.md](docs/protocols-and-adapters.md)) |
 | **Reusable, LLM-matched capabilities** | Markdown `SKILL.md` skills, matched to queries and injected into prompts ([docs/skills.md](docs/skills.md)) |
+| **Knowledge retrieval + ingestion** | Pluggable retriever (none/HTTP/Milvus) plus a document ingestion CLI: extract → chunk → embed → Milvus ([docs/knowledge-retrieval.md](docs/knowledge-retrieval.md)) |
 | **Real agent loops** | vendored `agent_kit` package: Agent + middleware + harness ([docs/agent-kit.md](docs/agent-kit.md)) |
 | **Conversation persistence** | Redis (hot) + MySQL (durable), ES planned ([docs/storage-and-config.md](docs/storage-and-config.md)) |
 | **Streaming, SSE, HITL** | Branch-aware token streaming — tokens stream only from nodes that provably reach an `answer`/`end`, so output from untaken branches never leaks to the client; plus human-in-the-loop interrupts ([docs/streaming-and-hitl.md](docs/streaming-and-hitl.md)) |
@@ -51,11 +52,12 @@ Start here, then follow the links into the topic files under [`docs/`](docs/).
 6. **[Protocols & Data Adapters](docs/protocols-and-adapters.md)** — the interaction-protocol abstraction and how to implement a custom one.
 7. **[Streaming & HITL](docs/streaming-and-hitl.md)** — the streaming/SSE model and human-in-the-loop interrupts.
 8. **[Skills](docs/skills.md)** — authoring `SKILL.md`, matching, and prompt injection.
-9. **[Agent Kit](docs/agent-kit.md)** — the vendored `agent_kit` SDK: Agent, graph builders, middleware, harness.
-10. **[Storage & Config](docs/storage-and-config.md)** — Redis/MySQL persistence, config files, environment variables.
-11. **[API Reference](docs/api-reference.md)** — HTTP endpoints (chat, workflow, HITL, report, suggested questions).
-12. **[Security & Open-Sourcing Checklist](docs/security-and-open-sourcing.md)** — **read before publishing.**
-13. **[Design Notes & Improvement Suggestions](docs/design-notes.md)** — honest assessment and concrete refactors.
+9. **[Knowledge Retrieval & Ingestion](docs/knowledge-retrieval.md)** — pluggable retrieval backends and the document ingestion tool.
+10. **[Agent Kit](docs/agent-kit.md)** — the vendored `agent_kit` SDK: Agent, graph builders, middleware, harness.
+11. **[Storage & Config](docs/storage-and-config.md)** — Redis/MySQL persistence, config files, environment variables.
+12. **[API Reference](docs/api-reference.md)** — HTTP endpoints (chat, workflow, HITL, report, suggested questions).
+13. **[Security & Open-Sourcing Checklist](docs/security-and-open-sourcing.md)** — **read before publishing.**
+14. **[Design Notes & Improvement Suggestions](docs/design-notes.md)** — honest assessment and concrete refactors.
 
 ---
 

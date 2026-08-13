@@ -32,6 +32,7 @@
 | **丰富的内置节点库** | 20+ 节点:LLM、代码、HTTP、条件分支、分类器、迭代、循环、工具、智能体、文档抽取 …([docs/nodes.md](docs/nodes.md)) |
 | **可替换的通信协议** | 可插拔 `DataAdapter` —— 默认 Dify 协议,内置 OpenAI 兼容,也可自带实现([docs/protocols-and-adapters.md](docs/protocols-and-adapters.md)) |
 | **可复用、与 LLM 匹配的能力** | Markdown `SKILL.md` 技能,按查询匹配并注入到提示词中([docs/skills.md](docs/skills.md)) |
+| **知识检索 + 文档入库** | 可插拔检索后端(none/HTTP/Milvus),外加文档入库 CLI:提取 → 切块 → embedding → Milvus([docs/knowledge-retrieval.zh-CN.md](docs/knowledge-retrieval.zh-CN.md)) |
 | **真正的智能体循环** | vendor 化的 `agent_kit` 包:Agent + 中间件 + Harness 治理底座([docs/agent-kit.md](docs/agent-kit.md)) |
 | **会话持久化** | Redis(热)+ MySQL(持久),ES 规划中([docs/storage-and-config.md](docs/storage-and-config.md)) |
 | **流式、SSE、HITL** | 分支感知路由的 token 流式输出——只从可证明能到达 `answer`/`end` 的节点输出 token,未选中分支的输出绝不泄露给客户端;人在环(human-in-the-loop)中断([docs/streaming-and-hitl.md](docs/streaming-and-hitl.md)) |
@@ -52,11 +53,12 @@
 6. **[协议与数据适配器](docs/protocols-and-adapters.md)** —— 交互协议抽象,以及如何实现自定义协议。
 7. **[流式与 HITL](docs/streaming-and-hitl.md)** —— 流式/SSE 模型与人在环中断。
 8. **[技能](docs/skills.md)** —— 编写 `SKILL.md`、匹配机制与提示词注入。
-9. **[Agent Kit](docs/agent-kit.md)** —— vendor 化的 `agent_kit` SDK:Agent、图构建器、中间件、Harness。
-10. **[存储与配置](docs/storage-and-config.md)** —— Redis/MySQL 持久化、配置文件、环境变量。
-11. **[API 参考](docs/api-reference.md)** —— HTTP 端点(对话、工作流、HITL、报告、推荐问题)。
-12. **[安全与开源检查清单](docs/security-and-open-sourcing.md)** —— **发布前必读。**
-13. **[设计笔记与改进建议](docs/design-notes.md)** —— 客观评估与具体重构建议。
+9. **[知识检索与文档入库](docs/knowledge-retrieval.zh-CN.md)** —— 可插拔检索后端与文档入库工具。
+10. **[Agent Kit](docs/agent-kit.md)** —— vendor 化的 `agent_kit` SDK:Agent、图构建器、中间件、Harness。
+11. **[存储与配置](docs/storage-and-config.md)** —— Redis/MySQL 持久化、配置文件、环境变量。
+12. **[API 参考](docs/api-reference.md)** —— HTTP 端点(对话、工作流、HITL、报告、推荐问题)。
+13. **[安全与开源检查清单](docs/security-and-open-sourcing.md)** —— **发布前必读。**
+14. **[设计笔记与改进建议](docs/design-notes.md)** —— 客观评估与具体重构建议。
 
 ---
 
